@@ -1,0 +1,58 @@
+image: golang:1.21
+command_prefix: set -euxo pipefail
+location: /scratch
+tasks:
+  deps:
+    input_paths:
+    - go.mod
+    - go.sum
+    command: |
+      go mod download
+  build:
+    # I would like to cache this but go-build files prevent it
+    cache: false
+    dependencies:
+    - deps
+    environment:
+      GOCACHE: /scratch/go-build
+      CGO_ENABLED: 0
+      GOOS: linux
+    mount_paths:
+    - go-build/
+    input_paths:
+    - cmd/
+    - util/
+    - main.go
+    output_paths:
+    - out/cbnr
+    command: |
+      go build -o out/cbnr
+  intake:
+    cache: false
+    dependencies:
+    - build
+    environment:
+      SYSLOG_LISTENER_PORT: "517"
+      INFLUX_URL: "http://host.docker.internal:8086"
+      INFLUX_DB_NAME: "testdb"
+      MMDB_PATH: "/scratch/GeoLite2-Country.mmdb"
+    ports:
+    - 517:517
+    input_paths:
+    - GeoLite2-Country.mmdb
+    command: |
+      out/cbnr intake
+  serve:
+    cache: false
+    dependencies:
+    - build
+    environment:
+      HTTP_LISTENER_PORT: "8080"
+      # this is the how to hit 127.0.0.1 inside a container
+      INFLUX_URL: "http://host.docker.internal:8086"
+      INFLUX_DB_NAME: "testdb"
+      CORS_ALLOWED_ORIGIN: "*"
+    ports:
+    - 8080:8080
+    command: |
+      out/cbnr serve

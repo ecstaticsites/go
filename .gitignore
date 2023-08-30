@@ -1,0 +1,8 @@
+# built executable artifacts
+/out
+
+# cache used during building
+/go-build
+
+# macOS stuff
+.DS_Store
