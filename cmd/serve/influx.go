@@ -22,11 +22,45 @@ var VALIDBUCKETBYS = []string{"", "1h", "1d", "1w"}
 
 func (i InfluxClient) HandleQuery(out http.ResponseWriter, req *http.Request) {
 
-	// todo, this will come from somewhere else (eg via resolved api key in headers) someday
-	// JWT, gotrue, https://go-chi.io/#/pages/middleware?id=jwt-authentication
-	site := "brandon-test-pull-zone.b-cdn.net"
+	supaSite := "https://ewwccbgjnulfgcvfrsvj.supabase.co"
 
-	queryStr, err := i.BuildInfluxQuery(site, req.URL.Query())
+	siteId := req.URL.Query().Get("site")
+	if siteId == "" {
+		http.Error(out, "Query param 'site' not provided, quitting",  http.StatusBadRequest)
+		return
+	}
+
+	var results []map[string]string
+
+	err := requests.
+		URL(supaSite).
+		Path("/rest/v1/site").
+		Param("select", "site_name").
+		Param("site_id", fmt.Sprintf("eq.%s", siteId)).
+		// anon key
+		Header("apikey", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV3d2NjYmdqbnVsZmdjdmZyc3ZqIiwicm9sZSI6ImFub24iLCJpYXQiOjE2OTM1ODE2ODUsImV4cCI6MjAwOTE1NzY4NX0.gI3YdNSC5GMkda2D2QPRMvnBdaMOS2ynfFKxis5-WKs").
+		Header("Authorization", req.Header.Get("Authorization")).
+		ToJSON(&results).
+		Fetch(req.Context())
+
+	if err != nil {
+		http.Error(out, fmt.Sprintf("Unable to authenticate request with supabase: %w", err),  http.StatusBadRequest)
+		return
+	}
+
+	if len(results) == 0 {
+		http.Error(out, fmt.Sprintf("No result rows from supabase for site ID %v (possibly RLS unauthorized?)", siteId),  http.StatusBadRequest)
+	}
+
+	if len(results) > 1 {
+		http.Error(out, fmt.Sprintf("Too many rows from supabase, what do I do: %v", results),  http.StatusBadRequest)
+	}
+
+	log.Printf("Results from supabase: %v", results)
+
+	site_name := results[0]["site_name"]
+
+	queryStr, err := i.BuildInfluxQuery(site_name, req.URL.Query())
 	if err != nil {
 		http.Error(out, fmt.Sprintf("Unable to create valid query for influxdb: %w", err),  http.StatusBadRequest)
 		return

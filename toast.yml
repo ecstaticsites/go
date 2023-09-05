@@ -51,7 +51,8 @@ tasks:
       # this is the how to hit 127.0.0.1 inside a container
       INFLUX_URL: "http://host.docker.internal:8086"
       INFLUX_DB_NAME: "testdb"
-      CORS_ALLOWED_ORIGIN: "*"
+      # would love to use wildcard here, but disallowed with credentials
+      CORS_ALLOWED_ORIGIN: "http://127.0.0.1:5173"
     ports:
     - 8080:8080
     command: |

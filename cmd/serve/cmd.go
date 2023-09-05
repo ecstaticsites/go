@@ -52,7 +52,12 @@ var ServeCmd = &cobra.Command{
 		r.Use(middleware.Logger)
 		r.Use(middleware.AllowContentType("application/json"))
 		r.Use(middleware.Timeout(time.Second))
-		r.Use(cors.Handler(cors.Options{AllowedOrigins: []string{corsOrigin}}))
+		r.Use(cors.Handler(cors.Options{
+			AllowedOrigins:   []string{corsOrigin},
+			AllowedMethods:   []string{"GET", "OPTIONS"},
+			AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
+			AllowCredentials: true,
+		}))
 
 		r.Get("/query", i.HandleQuery)
 
