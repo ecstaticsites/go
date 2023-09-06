@@ -4,6 +4,7 @@ import (
 	"log"
 	"fmt"
 	"net"
+	"strings"
 	"time"
 
 	"github.com/influxdata/influxdb-client-go/v2"
@@ -12,6 +13,10 @@ import (
 	"github.com/oschwald/geoip2-golang"
 	"zgo.at/isbot"
 )
+
+// TODO, settle on EXACTLY ONE shared value for when a tag can't be determined
+// right now it's KINDA "Unknown"
+// maybe empty str?
 
 // Geo is an interface over the parts of geoip2 we need
 // just set up this way so we can inject mocks in unit tests
@@ -70,7 +75,40 @@ func (t Tagger) Referrer(bunny BunnyLog) (string, string) {
 }
 
 func (t Tagger) FileType(bunny BunnyLog) (string, string) {
-	return "", ""
+
+	slashIndex := strings.LastIndex(bunny.Url.Path, "/")
+	filename := bunny.Url.Path[(slashIndex+1):]
+
+	if filename == "" {
+		return "filetype", "page"
+	}
+
+	dotIndex := strings.LastIndex(filename, ".")
+
+	if dotIndex == -1 {
+		return "filetype", "page"
+	}
+
+	switch t := filename[(dotIndex+1):]; t {
+
+	case "html":
+		return "filetype", "page"
+
+	case "css":
+		return "filetype", "stylesheet"
+
+	case "js":
+		return "filetype", "javascript"
+
+	case "jpg", "jpeg", "png", "ico", "svg":
+		return "filetype", "image"
+
+	case "ttf", "otf", "woff", "woff2":
+		return "filetype", "font"
+
+	default:
+		return "filetype", "Unknown"
+	}
 }
 
 func (t Tagger) IsProbablyBot(bunny BunnyLog) (string, string) {
