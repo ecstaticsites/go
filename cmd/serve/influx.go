@@ -30,6 +30,8 @@ func (i InfluxClient) HandleQuery(out http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// todo, possible DDOS protection, validate auth header exists and looks correct here
+
 	var results []map[string]string
 
 	err := requests.
@@ -93,6 +95,9 @@ func (i InfluxClient) BuildInfluxQuery(site string, queryParams url.Values) (str
 
 	query.WriteString(" ")
 	query.WriteString(fmt.Sprintf("from \"%s\"", site))
+
+	query.WriteString(" ")
+	query.WriteString(fmt.Sprintf("where filetype = \"page\""))
 
 	groupby := queryParams.Get("groupby")
 	if !slices.Contains(VALIDGROUPBYS, groupby) {

@@ -100,11 +100,26 @@ func (t Tagger) FileType(bunny BunnyLog) (string, string) {
 	case "js":
 		return "filetype", "javascript"
 
-	case "jpg", "jpeg", "png", "ico", "svg":
+	case "img", "jpg", "jpeg", "png", "ico", "gif", "svg", "heic":
 		return "filetype", "image"
 
 	case "ttf", "otf", "woff", "woff2":
 		return "filetype", "font"
+
+	case "txt", "csv", "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx":
+		return "filetype", "document"
+
+	case "zip", "gz", "rar", "iso", "tar", "lzma", "bz2", "7z", "z", "tgz":
+		return "filetype", "archive"
+
+	case "mp3", "m4a", "wav", "ogg", "flac", "midi", "aac", "wma":
+		return "filetype", "audio"
+
+	case "mpg", "mpeg", "avi", "mp4", "flv", "h264", "mov", "mk4", "mkv", "m4v":
+		return "filetype", "video"
+
+	case "xml":
+		return "filetype", "rssfeed"
 
 	default:
 		return "filetype", "Unknown"
