@@ -4,10 +4,10 @@ import (
 	"context"
 	"log"
 
+	"github.com/DmitriyVTitov/size"
 	"github.com/influxdata/influxdb-client-go/v2/api"
 	"github.com/oschwald/geoip2-golang"
 	"gopkg.in/mcuadros/go-syslog.v2"
-	"github.com/DmitriyVTitov/size"
 )
 
 type Intaker struct {
