@@ -7,6 +7,7 @@ import (
 	"github.com/influxdata/influxdb-client-go/v2/api"
 	"github.com/oschwald/geoip2-golang"
 	"gopkg.in/mcuadros/go-syslog.v2"
+	"github.com/DmitriyVTitov/size"
 )
 
 type Intaker struct {
@@ -17,6 +18,8 @@ type Intaker struct {
 
 func (i Intaker) Consume() {
 
+	tagger := Tagger{i.geoClient}
+
 	for logParts := range i.syslogChannel {
 		if message, ok := logParts["message"]; ok {
 
@@ -26,20 +29,15 @@ func (i Intaker) Consume() {
 				continue
 			}
 
-			uaTags := tagsFromUserAgent(bunny.UserAgent)
-			ipTags := tagsFromIpAddress(i.geoClient, bunny.RemoteIp)
-			logTags := tagsFromBunnyLog(bunny)
+			point := tagger.Point(bunny)
 
-			point := pointFromBunnyLog(bunny, uaTags, ipTags, logTags)
+			log.Printf("Writing point of size %v to measurement %v", size.Of(point), bunny.Url.Host)
 
 			err = i.influxClient.WritePoint(context.Background(), point)
 			if err != nil {
 				log.Printf("Write error: %w\n", err)
 				continue
 			}
-
-			// replace with statsd point written, contains URL host, nothing else
-			log.Printf("point written yo\n")
 		}
 	}
 }

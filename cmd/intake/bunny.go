@@ -2,17 +2,10 @@ package intake
 
 import (
 	"fmt"
-	"log"
 	"net"
 	"net/url"
 	"strconv"
 	"strings"
-	"time"
-
-	"github.com/influxdata/influxdb-client-go/v2"
-	"github.com/influxdata/influxdb-client-go/v2/api/write"
-	"github.com/mileusna/useragent"
-	"github.com/oschwald/geoip2-golang"
 )
 
 type BunnyLog struct {
@@ -76,63 +69,4 @@ func stringToBunnyLog(input string) (BunnyLog, error) {
 		UniqueRequestId: parts[10],
 		CountryCode:     parts[11],
 	}, nil
-}
-
-func tagsFromUserAgent(input string) map[string]string {
-
-	ua := useragent.Parse(input)
-
-	device := "Unknown"
-	if ua.Mobile {
-		device = "Mobile"
-	} else if ua.Tablet {
-		device = "Tablet"
-	} else if ua.Desktop {
-		device = "Desktop"
-	}
-
-	return map[string]string{
-		"browser": ua.Name,
-		"os":      ua.OS,
-		"device":  device,
-	}
-}
-
-func tagsFromIpAddress(geoClient *geoip2.Reader, ipaddr net.IP) map[string]string {
-	record, err := geoClient.Country(ipaddr)
-	if err != nil {
-		log.Printf("Unable to get country for IP %v: %w", ipaddr, err)
-		return nil
-	}
-	return map[string]string{
-		"country": record.Country.Names["en"],
-	}
-}
-
-func tagsFromBunnyLog(input BunnyLog) map[string]string {
-	return map[string]string{
-		"path":       input.Url.Path,
-		"statuscode": input.StatusCode,
-	}
-}
-
-func pointFromBunnyLog(input BunnyLog, tagMaps ...map[string]string) *write.Point {
-
-	allTags := map[string]string{}
-	for _, tagMap := range tagMaps {
-		for k, v := range tagMap {
-			allTags[k] = v
-		}
-	}
-
-	return influxdb2.NewPoint(
-		// metric name
-		input.Url.Host,
-		// tags
-		allTags,
-		// fields
-		map[string]interface{}{"hits": 1},
-		// ts
-		time.UnixMilli(input.Timestamp),
-	)
 }
