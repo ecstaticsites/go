@@ -21,7 +21,7 @@ var IntakeCmd = &cobra.Command{
 
 		syslogPort, err := util.GetEnvConfig("SYSLOG_LISTENER_PORT")
 		if err != nil {
-			log.Fatalf("Unable to get syslog port from environment: %w", err)
+			log.Fatalf("Unable to get syslog port from environment: %v", err)
 		}
 
 		// buffer for the messages from UDP port, no max size I think
@@ -38,12 +38,12 @@ var IntakeCmd = &cobra.Command{
 
 		influxUrl, err := util.GetEnvConfig("INFLUX_URL")
 		if err != nil {
-			log.Fatalf("Unable to get influx location from environment: %w", err)
+			log.Fatalf("Unable to get influx location from environment: %v", err)
 		}
 
 		influxDbName, err := util.GetEnvConfig("INFLUX_DB_NAME")
 		if err != nil {
-			log.Fatalf("Unable to get influx DB name from environment: %w", err)
+			log.Fatalf("Unable to get influx DB name from environment: %v", err)
 		}
 
 		// Empty value in auth parameter for an unauthenticated server
@@ -57,12 +57,12 @@ var IntakeCmd = &cobra.Command{
 
 		mmdbPath, err := util.GetEnvConfig("MMDB_PATH")
 		if err != nil {
-			log.Fatalf("Unable to get GeoIP DB path from environment: %w", err)
+			log.Fatalf("Unable to get GeoIP DB path from environment: %v", err)
 		}
 
 		geoClient, err := geoip2.Open(mmdbPath)
 		if err != nil {
-			log.Fatalf("Could not create geoIP database: %w", err)
+			log.Fatalf("Could not create geoIP database: %v", err)
 		}
 
 		log.Printf("GEOLITE DATABASE OPENED")

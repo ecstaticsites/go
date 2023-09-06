@@ -27,6 +27,20 @@ tasks:
     - out/cbnr
     command: |
       go build -o out/cbnr
+  # test:
+  #   cache: false
+  #   dependencies:
+  #   - build
+  #   environment:
+  #     GOCACHE: /scratch/go-build
+  #     CGO_ENABLED: 0
+  #     GOOS: linux
+  #   mount_paths:
+  #   - go-build/
+  #   input_paths:
+  #   - out/cbnr
+  #   command: |
+  #     go test
   intake:
     cache: false
     dependencies:

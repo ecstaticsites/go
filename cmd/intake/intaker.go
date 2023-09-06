@@ -25,7 +25,7 @@ func (i Intaker) Consume() {
 
 			bunny, err := stringToBunnyLog(message.(string))
 			if err != nil {
-				log.Printf("Parse error: %w\n", err)
+				log.Printf("Parse error: %v\n", err)
 				continue
 			}
 
@@ -35,7 +35,7 @@ func (i Intaker) Consume() {
 
 			err = i.influxClient.WritePoint(context.Background(), point)
 			if err != nil {
-				log.Printf("Write error: %w\n", err)
+				log.Printf("Write error: %v\n", err)
 				continue
 			}
 		}

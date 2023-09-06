@@ -2,19 +2,27 @@ package intake
 
 import (
 	"log"
+	"fmt"
+	"net"
 	"time"
 
 	"github.com/influxdata/influxdb-client-go/v2"
 	"github.com/influxdata/influxdb-client-go/v2/api/write"
 	"github.com/mileusna/useragent"
 	"github.com/oschwald/geoip2-golang"
-	//"zgo.at/isbot"
+	"zgo.at/isbot"
 )
+
+// Geo is an interface over the parts of geoip2 we need
+// just set up this way so we can inject mocks in unit tests
+type Geo interface {
+	Country(net.IP) (*geoip2.Country, error)
+}
 
 // Tagger is responsible for turning a BunnyLog into a point for influx
 // with all the necessary tags, timestamps, etc
 type Tagger struct {
-	geoClient *geoip2.Reader
+	geoClient Geo
 }
 
 func (t Tagger) Device(bunny BunnyLog) (string, string) {
@@ -43,8 +51,8 @@ func (t Tagger) Os(bunny BunnyLog) (string, string) {
 func (t Tagger) Country(bunny BunnyLog) (string, string) {
 	record, err := t.geoClient.Country(bunny.RemoteIp)
 	if err != nil {
-		log.Printf("Unable to get country for IP %v: %w", bunny.RemoteIp, err)
-		return "", ""
+		log.Printf("Unable to get country for IP %v: %v", bunny.RemoteIp, err)
+		return "country", "Unknown"
 	}
 	return "country", record.Country.Names["en"]
 }
@@ -66,10 +74,22 @@ func (t Tagger) FileType(bunny BunnyLog) (string, string) {
 }
 
 func (t Tagger) IsProbablyBot(bunny BunnyLog) (string, string) {
-	return "", ""
+	// similar to isbot's "Bot" implementation, but skips the "does the header"
+	// indicate this is a prefetch" check since we ain't got no headers
+	BotNoHeader := func() isbot.Result {
+		i := isbot.UserAgent(bunny.UserAgent)
+		if i > 0 {
+			return i
+		}
+
+		return isbot.IPRange(fmt.Sprintf("%s", bunny.RemoteIp))
+	}
+
+	res := BotNoHeader()
+	return "isprobablybot", fmt.Sprintf("%v", isbot.Is(res))
 }
 
-func (t Tagger) Point(bunny BunnyLog) *write.Point {
+func (t Tagger) Tags(bunny BunnyLog) map[string]string {
 
 	tagFuncSlice := []func(bunny BunnyLog) (string, string){
 		t.Device,
@@ -88,6 +108,13 @@ func (t Tagger) Point(bunny BunnyLog) *write.Point {
 		name, val := f(bunny)
 		tags[name] = val
 	}
+
+	return tags
+}
+
+func (t Tagger) Point(bunny BunnyLog) *write.Point {
+
+	tags := t.Tags(bunny)
 
 	return influxdb2.NewPoint(
 		// metric name
