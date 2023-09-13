@@ -36,9 +36,10 @@ func (i InfluxClient) HandleQuery(out http.ResponseWriter, req *http.Request) {
 
 	err := requests.
 		URL(supaSite).
-		Path("/rest/v1/site").
-		Param("select", "site_name").
+		Path("/rest/v1/alias").
+		Param("select", "hostname").
 		Param("site_id", fmt.Sprintf("eq.%s", siteId)).
+		Param("is_default", fmt.Sprintf("eq.%s", "TRUE")).
 		// anon key
 		Header("apikey", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV3d2NjYmdqbnVsZmdjdmZyc3ZqIiwicm9sZSI6ImFub24iLCJpYXQiOjE2OTM1ODE2ODUsImV4cCI6MjAwOTE1NzY4NX0.gI3YdNSC5GMkda2D2QPRMvnBdaMOS2ynfFKxis5-WKs").
 		Header("Authorization", req.Header.Get("Authorization")).
@@ -46,7 +47,7 @@ func (i InfluxClient) HandleQuery(out http.ResponseWriter, req *http.Request) {
 		Fetch(req.Context())
 
 	if err != nil {
-		http.Error(out, fmt.Sprintf("Unable to authenticate request with supabase: %w", err),  http.StatusBadRequest)
+		http.Error(out, fmt.Sprintf("Supabase request failed: %v, response: %v", err, results),  http.StatusBadRequest)
 		return
 	}
 
@@ -96,8 +97,8 @@ func (i InfluxClient) BuildInfluxQuery(site string, queryParams url.Values) (str
 	query.WriteString(" ")
 	query.WriteString(fmt.Sprintf("from \"%s\"", site))
 
-	query.WriteString(" ")
-	query.WriteString(fmt.Sprintf("where filetype = \"page\""))
+	// query.WriteString(" ")
+	// query.WriteString(fmt.Sprintf("where filetype = \"page\""))
 
 	groupby := queryParams.Get("groupby")
 	if !slices.Contains(VALIDGROUPBYS, groupby) {
