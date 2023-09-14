@@ -14,7 +14,7 @@ import (
 
 var IntakeCmd = &cobra.Command{
 	Use:   "intake",
-	Short: "intake - starts listenting for UDP syslog messages on a port",
+	Short: "intake - starts listenting for TCP syslog messages on a port",
 	Run: func(cmd *cobra.Command, args []string) {
 
 		log.Printf("STARTING")
@@ -24,14 +24,14 @@ var IntakeCmd = &cobra.Command{
 			log.Fatalf("Unable to get syslog port from environment: %v", err)
 		}
 
-		// buffer for the messages from UDP port, no max size I think
+		// buffer for the messages from TCP port, no max size I think
 		channel := make(syslog.LogPartsChannel)
 		handler := syslog.NewChannelHandler(channel)
 
 		server := syslog.NewServer()
 		server.SetFormat(syslog.RFC5424)
 		server.SetHandler(handler)
-		server.ListenUDP(fmt.Sprintf("0.0.0.0:%s", syslogPort))
+		server.ListenTCP(fmt.Sprintf("0.0.0.0:%s", syslogPort))
 		server.Boot()
 
 		log.Printf("SERVER BOOTED")
