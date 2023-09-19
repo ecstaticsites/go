@@ -46,7 +46,6 @@ func (i InfluxClient) HandleQuery(out http.ResponseWriter, req *http.Request) {
 		ToJSON(&results).
 		Fetch(req.Context())
 
-	// todo, I believe we get a better resp from supabase here, but how to propogate that? results is empty below
 	if err != nil {
 		http.Error(out, fmt.Sprintf("Supabase request failed: %v, response: %v", err, results),  http.StatusBadRequest)
 		return
