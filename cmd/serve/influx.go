@@ -61,9 +61,9 @@ func (i InfluxClient) HandleQuery(out http.ResponseWriter, req *http.Request) {
 
 	log.Printf("Results from supabase: %v", results)
 
-	site_name := results[0]["site_name"]
+	hostname := results[0]["hostname"]
 
-	queryStr, err := i.BuildInfluxQuery(site_name, req.URL.Query())
+	queryStr, err := i.BuildInfluxQuery(hostname, req.URL.Query())
 	if err != nil {
 		http.Error(out, fmt.Sprintf("Unable to create valid query for influxdb: %w", err),  http.StatusBadRequest)
 		return
@@ -97,8 +97,8 @@ func (i InfluxClient) BuildInfluxQuery(site string, queryParams url.Values) (str
 	query.WriteString(" ")
 	query.WriteString(fmt.Sprintf("from \"%s\"", site))
 
-	// query.WriteString(" ")
-	// query.WriteString(fmt.Sprintf("where filetype = \"page\""))
+	query.WriteString(" ")
+	query.WriteString(fmt.Sprintf("where filetype = \"page\""))
 
 	groupby := queryParams.Get("groupby")
 	if !slices.Contains(VALIDGROUPBYS, groupby) {
