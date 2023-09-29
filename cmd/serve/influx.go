@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"net/url"
+	"strconv"
 	"strings"
 
-	"golang.org/x/exp/slices"
 	"github.com/carlmjohnson/requests"
+	"golang.org/x/exp/slices"
 )
 
 type InfluxClient struct {
@@ -18,23 +18,65 @@ type InfluxClient struct {
 
 // below should be const, but golang knows better
 var VALIDGROUPBYS = []string{"", "browser", "os", "device", "country", "path", "statuscode"}
-var VALIDBUCKETBYS = []string{"", "1h", "1d", "1w"}
 
 func (i InfluxClient) HandleQuery(out http.ResponseWriter, req *http.Request) {
 
 	supaSite := "https://ewwccbgjnulfgcvfrsvj.supabase.co"
 
+	// todo, this is gross. there must be a better way of defining and validating API spec
+
 	siteId := req.URL.Query().Get("site")
 	if siteId == "" {
-		http.Error(out, "Query param 'site' not provided, quitting",  http.StatusBadRequest)
+		http.Error(out, "Query param 'site' not provided, quitting", http.StatusBadRequest)
 		return
+	}
+
+	unixStartStr := req.URL.Query().Get("start")
+	if unixStartStr == "" {
+		http.Error(out, "Query param 'start' not provided, quitting", http.StatusBadRequest)
+		return
+	}
+
+	unixStart, err := strconv.Atoi(unixStartStr)
+	if err != nil {
+		http.Error(out, "Query param 'start' is not a valid int, quitting", http.StatusBadRequest)
+		return
+	}
+
+	unixEndStr := req.URL.Query().Get("end")
+	if unixEndStr == "" {
+		http.Error(out, "Query param 'end' not provided, quitting", http.StatusBadRequest)
+		return
+	}
+
+	unixEnd, err := strconv.Atoi(unixEndStr)
+	if err != nil {
+		http.Error(out, "Query param 'end' is not a valid int, quitting", http.StatusBadRequest)
+		return
+	}
+
+	groupby := req.URL.Query().Get("groupby")
+	if !slices.Contains(VALIDGROUPBYS, groupby) {
+		http.Error(out, fmt.Sprintf("Invalid groupby %s (try one of %v)", groupby, VALIDGROUPBYS), http.StatusBadRequest)
+	}
+
+	tz := req.URL.Query().Get("tz")
+	if false {
+		// todo, some actual validation here, hashtag sql injection
+		http.Error(out, fmt.Sprintf("Invalid timezone %s", tz), http.StatusBadRequest)
+	}
+
+	// derive time bucket size based on the requested time range (they do not get to pick)
+	bucketby := "1d"
+	if (unixEnd - unixStart) <= 86400 {
+		bucketby = "1h"
 	}
 
 	// todo, possible DDOS protection, validate auth header exists and looks correct here
 
 	var results []map[string]string
 
-	err := requests.
+	err = requests.
 		URL(supaSite).
 		Path("/rest/v1/alias").
 		Param("select", "hostname").
@@ -47,25 +89,25 @@ func (i InfluxClient) HandleQuery(out http.ResponseWriter, req *http.Request) {
 		Fetch(req.Context())
 
 	if err != nil {
-		http.Error(out, fmt.Sprintf("Supabase request failed: %v, response: %v", err, results),  http.StatusBadRequest)
+		http.Error(out, fmt.Sprintf("Supabase request failed: %v, response: %v", err, results), http.StatusBadRequest)
 		return
 	}
 
 	if len(results) == 0 {
-		http.Error(out, fmt.Sprintf("No result rows from supabase for site ID %v (possibly RLS unauthorized?)", siteId),  http.StatusBadRequest)
+		http.Error(out, fmt.Sprintf("No result rows from supabase for site ID %v (possibly RLS unauthorized?)", siteId), http.StatusBadRequest)
 	}
 
 	if len(results) > 1 {
-		http.Error(out, fmt.Sprintf("Too many rows from supabase, what do I do: %v", results),  http.StatusBadRequest)
+		http.Error(out, fmt.Sprintf("Too many rows from supabase, what do I do: %v", results), http.StatusBadRequest)
 	}
 
 	log.Printf("Results from supabase: %v", results)
 
 	hostname := results[0]["hostname"]
 
-	queryStr, err := i.BuildInfluxQuery(hostname, req.URL.Query())
+	queryStr, err := i.BuildInfluxQuery(hostname, groupby, bucketby, tz, unixStart, unixEnd)
 	if err != nil {
-		http.Error(out, fmt.Sprintf("Unable to create valid query for influxdb: %w", err),  http.StatusBadRequest)
+		http.Error(out, fmt.Sprintf("Unable to create valid query for influxdb: %w", err), http.StatusBadRequest)
 		return
 	}
 
@@ -88,55 +130,39 @@ func (i InfluxClient) HandleQuery(out http.ResponseWriter, req *http.Request) {
 	return
 }
 
-func (i InfluxClient) BuildInfluxQuery(site string, queryParams url.Values) (string, error) {
+func (i InfluxClient) BuildInfluxQuery(hostname, groupby, bucketby, tz string, unixStart, unixEnd int) (string, error) {
 
 	var query strings.Builder
 
 	query.WriteString("select sum(hits)")
 
 	query.WriteString(" ")
-	query.WriteString(fmt.Sprintf("from \"%s\"", site))
+	query.WriteString(fmt.Sprintf("from \"%s\"", hostname))
 
 	query.WriteString(" ")
-	query.WriteString(fmt.Sprintf("where filetype = 'page'"))
+	query.WriteString(fmt.Sprintf("where filetype = 'page' and time >= %ds and time <= %ds", unixStart, unixEnd))
 
-	groupby := queryParams.Get("groupby")
-	if !slices.Contains(VALIDGROUPBYS, groupby) {
-		return "", fmt.Errorf("Invalid groupby %s (try one of %v)", groupby, VALIDGROUPBYS)
-	}
-
-	bucketby := queryParams.Get("bucketby")
-	if !slices.Contains(VALIDBUCKETBYS, bucketby) {
-		return "", fmt.Errorf("Invalid bucketby %s (try one of %v)", bucketby, VALIDBUCKETBYS)
-	}
-
-	tz := queryParams.Get("tz")
-	if false {
-		// todo, some actual validation here, hashtag sql injection
-		return "", fmt.Errorf("Invalid timezone %s", tz)
-	}
-
-	if (groupby != "" || bucketby != "") {
+	if groupby != "" || bucketby != "" {
 		query.WriteString(" ")
 		query.WriteString("group by")
 	}
 
-	if (groupby != "") {
+	if groupby != "" {
 		query.WriteString(" ")
 		query.WriteString(groupby)
 	}
 
-	if (groupby != "" && bucketby != "") {
+	if groupby != "" && bucketby != "" {
 		query.WriteString(",")
 	}
 
-	if (bucketby != "") {
+	if bucketby != "" {
 		query.WriteString(fmt.Sprintf("time(%s)", bucketby))
 		query.WriteString(" ")
 		query.WriteString("fill(0)")
 	}
 
-	if (tz != "") {
+	if tz != "" {
 		query.WriteString(" ")
 		query.WriteString(fmt.Sprintf("tz('%s')", tz))
 	}
