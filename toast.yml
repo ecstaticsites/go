@@ -47,6 +47,7 @@ tasks:
     - build
     environment:
       SYSLOG_LISTENER_PORT: "517"
+      SYSLOG_LISTENER_UDP: "yup"
       INFLUX_URL: "http://host.docker.internal:8086"
       INFLUX_DB_NAME: "testdb"
       MMDB_PATH: "/scratch/GeoLite2-Country.mmdb"

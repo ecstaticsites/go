@@ -14,27 +14,40 @@ import (
 
 var IntakeCmd = &cobra.Command{
 	Use:   "intake",
-	Short: "intake - starts listenting for UDP syslog messages on a port",
+	Short: "intake - starts listenting for TCP or UDP syslog messages on a port",
 	Run: func(cmd *cobra.Command, args []string) {
 
 		log.Printf("STARTING")
+
+		syslogUdpBool := false
+		_, err := util.GetEnvConfig("SYSLOG_LISTENER_UDP")
+		if err == nil {
+			// no error means this env var was set! So let's use UDP
+			syslogUdpBool = true
+		}
 
 		syslogPort, err := util.GetEnvConfig("SYSLOG_LISTENER_PORT")
 		if err != nil {
 			log.Fatalf("Unable to get syslog port from environment: %v", err)
 		}
 
-		// buffer for the messages from UDP port, no max size I think
+		// buffer for the messages from intake port, no max size I think
 		channel := make(syslog.LogPartsChannel)
 		handler := syslog.NewChannelHandler(channel)
 
 		server := syslog.NewServer()
 		server.SetFormat(syslog.RFC5424)
 		server.SetHandler(handler)
-		server.ListenUDP(fmt.Sprintf("0.0.0.0:%s", syslogPort))
+
+		if syslogUdpBool {
+			server.ListenUDP(fmt.Sprintf("0.0.0.0:%s", syslogPort))
+		} else {
+			server.ListenTCP(fmt.Sprintf("0.0.0.0:%s", syslogPort))
+		}
+
 		server.Boot()
 
-		log.Printf("SERVER BOOTED")
+		log.Printf("SERVER BOOTED, LISTENING UDP? %v", syslogUdpBool)
 
 		influxUrl, err := util.GetEnvConfig("INFLUX_URL")
 		if err != nil {
