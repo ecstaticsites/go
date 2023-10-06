@@ -18,6 +18,7 @@ type InfluxClient struct {
 
 // below should be const, but golang knows better
 var VALIDGROUPBYS = []string{"", "browser", "os", "device", "country", "path", "statuscode"}
+var VALIDBOTS = []string{"true", "false"}
 
 func (i InfluxClient) HandleQuery(out http.ResponseWriter, req *http.Request) {
 
@@ -53,6 +54,11 @@ func (i InfluxClient) HandleQuery(out http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		http.Error(out, "Query param 'end' is not a valid int, quitting", http.StatusBadRequest)
 		return
+	}
+
+	includeBots := req.URL.Query().Get("bots")
+	if !slices.Contains(VALIDBOTS, includeBots) {
+		http.Error(out, fmt.Sprintf("Invalid groupby %s (try one of %v)", includeBots, VALIDBOTS), http.StatusBadRequest)
 	}
 
 	groupby := req.URL.Query().Get("groupby")
@@ -105,7 +111,7 @@ func (i InfluxClient) HandleQuery(out http.ResponseWriter, req *http.Request) {
 
 	hostname := results[0]["hostname"]
 
-	queryStr, err := i.BuildInfluxQuery(hostname, groupby, bucketby, tz, unixStart, unixEnd)
+	queryStr, err := i.BuildInfluxQuery(hostname, includeBots, groupby, bucketby, tz, unixStart, unixEnd)
 	if err != nil {
 		http.Error(out, fmt.Sprintf("Unable to create valid query for influxdb: %w", err), http.StatusBadRequest)
 		return
@@ -130,7 +136,7 @@ func (i InfluxClient) HandleQuery(out http.ResponseWriter, req *http.Request) {
 	return
 }
 
-func (i InfluxClient) BuildInfluxQuery(hostname, groupby, bucketby, tz string, unixStart, unixEnd int) (string, error) {
+func (i InfluxClient) BuildInfluxQuery(hostname, includeBots, groupby, bucketby, tz string, unixStart, unixEnd int) (string, error) {
 
 	var query strings.Builder
 
@@ -140,7 +146,17 @@ func (i InfluxClient) BuildInfluxQuery(hostname, groupby, bucketby, tz string, u
 	query.WriteString(fmt.Sprintf("from \"%s\"", hostname))
 
 	query.WriteString(" ")
-	query.WriteString(fmt.Sprintf("where filetype = 'page' and time >= %ds and time <= %ds", unixStart, unixEnd))
+	query.WriteString(fmt.Sprintf("where filetype = 'page'"))
+
+	// if includeBots is true, then we want everything -- so no filter
+	// todo -- isprobablybot is a string ?? should fix that
+	if (includeBots == "false") {
+		query.WriteString(" ")
+		query.WriteString(fmt.Sprintf("and isprobablybot = 'false'"))
+	}
+
+	query.WriteString(" ")
+	query.WriteString(fmt.Sprintf("and time >= %ds and time <= %ds", unixStart, unixEnd))
 
 	if groupby != "" || bucketby != "" {
 		query.WriteString(" ")
