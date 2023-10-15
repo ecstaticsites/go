@@ -22,13 +22,11 @@ var VALIDBOTS = []string{"true", "false"}
 
 func (i InfluxClient) HandleQuery(out http.ResponseWriter, req *http.Request) {
 
-	supaSite := "https://ewwccbgjnulfgcvfrsvj.supabase.co"
-
 	// todo, this is gross. there must be a better way of defining and validating API spec
 
-	siteId := req.URL.Query().Get("site")
-	if siteId == "" {
-		http.Error(out, "Query param 'site' not provided, quitting", http.StatusBadRequest)
+	hostname := req.URL.Query().Get("hostname")
+	if hostname == "" {
+		http.Error(out, "Query param 'hostname' not provided, quitting", http.StatusBadRequest)
 		return
 	}
 
@@ -79,37 +77,6 @@ func (i InfluxClient) HandleQuery(out http.ResponseWriter, req *http.Request) {
 	}
 
 	// todo, possible DDOS protection, validate auth header exists and looks correct here
-
-	var results []map[string]string
-
-	err = requests.
-		URL(supaSite).
-		Path("/rest/v1/alias").
-		Param("select", "hostname").
-		Param("site_id", fmt.Sprintf("eq.%s", siteId)).
-		Param("is_default", fmt.Sprintf("eq.%s", "TRUE")).
-		// anon key
-		Header("apikey", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV3d2NjYmdqbnVsZmdjdmZyc3ZqIiwicm9sZSI6ImFub24iLCJpYXQiOjE2OTM1ODE2ODUsImV4cCI6MjAwOTE1NzY4NX0.gI3YdNSC5GMkda2D2QPRMvnBdaMOS2ynfFKxis5-WKs").
-		Header("Authorization", req.Header.Get("Authorization")).
-		ToJSON(&results).
-		Fetch(req.Context())
-
-	if err != nil {
-		http.Error(out, fmt.Sprintf("Supabase request failed: %v, response: %v", err, results), http.StatusBadRequest)
-		return
-	}
-
-	if len(results) == 0 {
-		http.Error(out, fmt.Sprintf("No result rows from supabase for site ID %v (possibly RLS unauthorized?)", siteId), http.StatusBadRequest)
-	}
-
-	if len(results) > 1 {
-		http.Error(out, fmt.Sprintf("Too many rows from supabase, what do I do: %v", results), http.StatusBadRequest)
-	}
-
-	log.Printf("Results from supabase: %v", results)
-
-	hostname := results[0]["hostname"]
 
 	queryStr, err := i.BuildInfluxQuery(hostname, includeBots, groupby, bucketby, tz, unixStart, unixEnd)
 	if err != nil {
