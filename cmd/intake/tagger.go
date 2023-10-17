@@ -66,6 +66,14 @@ func (t Tagger) StatusCode(bunny BunnyLog) (string, string) {
 	return "statuscode", bunny.StatusCode
 }
 
+func (t Tagger) StatusCategory(bunny BunnyLog) (string, string) {
+	if len(bunny.StatusCode) != 3 {
+		log.Printf("Can't get status category from weird code: %v", bunny.StatusCode)
+		return "statuscategory", "Unknown"
+	}
+	return "statuscategory", string(bunny.StatusCode[0]) + "xx"
+}
+
 func (t Tagger) Path(bunny BunnyLog) (string, string) {
 	return "path", bunny.Url.Path
 }
@@ -127,7 +135,7 @@ func (t Tagger) FileType(bunny BunnyLog) (string, string) {
 }
 
 func (t Tagger) IsProbablyBot(bunny BunnyLog) (string, string) {
-	// similar to isbot's "Bot" implementation, but skips the "does the header"
+	// similar to isbot's "Bot" implementation, but skips the "does the header
 	// indicate this is a prefetch" check since we ain't got no headers
 	BotNoHeader := func() isbot.Result {
 		i := isbot.UserAgent(bunny.UserAgent)
@@ -150,6 +158,7 @@ func (t Tagger) Tags(bunny BunnyLog) map[string]string {
 		t.Os,
 		t.Country,
 		t.StatusCode,
+		t.StatusCategory,
 		t.Path,
 		t.Referrer,
 		t.FileType,

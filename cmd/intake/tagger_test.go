@@ -37,6 +37,7 @@ func TestNotBot(t *testing.T) {
 		"os": "Windows",
 		"path": "/favicon.ico",
 		"statuscode": "200",
+		"statuscategory": "2xx",
 	}
 
 	assert.Equal(t, expected, actual)
@@ -48,7 +49,7 @@ func TestBot(t *testing.T) {
 	mock := MockGeo{}
 	tagger := Tagger{mock}
 
-	str := "HIT|200|1507167062421|412|390|163.172.53.229|-|https://www.example.com/favicon.ico|WA|curl/7.54.1|322b688bd63fb63f2babe9de30a5d262|DE"
+	str := "HIT|404|1507167062421|412|390|163.172.53.229|-|https://www.example.com/favicon.ico|WA|curl/7.54.1|322b688bd63fb63f2babe9de30a5d262|DE"
 
 	bunny, err := stringToBunnyLog(str)
 	assert.NoError(t, err)
@@ -64,7 +65,8 @@ func TestBot(t *testing.T) {
 		"isprobablybot": "true",
 		"os": "",
 		"path": "/favicon.ico",
-		"statuscode": "200",
+		"statuscode": "404",
+		"statuscategory": "4xx",
 	}
 
 	assert.Equal(t, expected, actual)
