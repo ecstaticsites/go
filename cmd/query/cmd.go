@@ -1,4 +1,4 @@
-package serve
+package query
 
 import (
 	"fmt"
@@ -16,9 +16,9 @@ import (
 	"github.com/go-chi/jwtauth/v5"
 )
 
-var ServeCmd = &cobra.Command{
-	Use:   "serve",
-	Short: "serve - starts an API server which can be queried for data",
+var QueryCmd = &cobra.Command{
+	Use:   "query",
+	Short: "query - starts an API server which can be queried for data",
 	Run: func(cmd *cobra.Command, args []string) {
 
 		log.Printf("STARTING")

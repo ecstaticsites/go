@@ -1,4 +1,4 @@
-package serve
+package query
 
 import (
 	"fmt"

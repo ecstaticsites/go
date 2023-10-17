@@ -57,7 +57,7 @@ tasks:
     - GeoLite2-Country.mmdb
     command: |
       out/cbnr intake
-  serve:
+  query:
     cache: false
     dependencies:
     - build
@@ -74,4 +74,4 @@ tasks:
     ports:
     - 8080:8080
     command: |
-      out/cbnr serve
+      out/cbnr query

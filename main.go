@@ -2,7 +2,7 @@ package main
 
 import (
 	"cbnr/cmd/intake"
-	"cbnr/cmd/serve"
+	"cbnr/cmd/query"
 
 	"github.com/spf13/cobra"
 )
@@ -13,6 +13,6 @@ func main() {
 		Short: "cbnr - parse, store, and query server access logs",
 	}
 	rootCmd.AddCommand(intake.IntakeCmd)
-	rootCmd.AddCommand(serve.ServeCmd)
+	rootCmd.AddCommand(query.QueryCmd)
 	rootCmd.Execute()
 }
