@@ -3,6 +3,10 @@ package intake
 import (
 	"fmt"
 	"log"
+	"time"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"cbnr/util"
 
@@ -18,6 +22,10 @@ var IntakeCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 
 		log.Printf("STARTING")
+
+		// set up channel to handle graceful shutdown
+		done := make(chan os.Signal, 1)
+		signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
 		syslogUdpBool := false
 		_, err := util.GetEnvConfig("SYSLOG_LISTENER_UDP")
@@ -59,12 +67,18 @@ var IntakeCmd = &cobra.Command{
 			log.Fatalf("Unable to get influx DB name from environment: %v", err)
 		}
 
+		// using the NON-BLOCKING client
+		// https://github.com/influxdata/influxdb-client-go#non-blocking-write-client
+		// flushes every 1s or 1000 points, whichever comes first, and sets loglevel 2 (info)
+		// default async retries is 5, we will want to tune (lower) this
+		influxOpts := influxdb2.DefaultOptions().SetBatchSize(1000).SetFlushInterval(1000).SetLogLevel(2)
+
 		// Empty value in auth parameter for an unauthenticated server
-		influxClient := influxdb2.NewClient(influxUrl, "")
+		influxClient := influxdb2.NewClientWithOptions(influxUrl, "", influxOpts)
 
 		// Empty value for org name (not used)
 		// Second parameter is database/retention-policy (no slash => default retention)
-		influxWriter := influxClient.WriteAPIBlocking("", influxDbName)
+		influxWriter := influxClient.WriteAPI("", influxDbName)
 
 		log.Printf("INFLUX CLIENT INITTED")
 
@@ -84,8 +98,33 @@ var IntakeCmd = &cobra.Command{
 
 		go intaker.Consume()
 
-		log.Printf("GOROUTINE STARTED")
+		log.Printf("PARSER GOROUTINE STARTED, waiting to die...")
 
-		server.Wait()
+		// block here until we get some sort of interrupt or kill
+		<-done
+
+		log.Printf("GOT SIGNAL TO DIE, cleaning up...")
+
+		err = server.Kill()
+		if err != nil {
+			log.Fatalf("Could not kill running syslog listener: %v", err)
+		}
+
+		log.Printf("SYSLOG LISTENER KILLED, SLEEPING FOR 1 SECOND")
+
+		// terrible? Yes, but I can figure out how to actually make sure the parser
+		// channel is empty later, here 1s is more than enough
+		time.Sleep(1 * time.Second)
+
+		// Force all unwritten data to be sent
+		influxWriter.Flush()
+		// Ensures background processes finishes
+		influxClient.Close()
+
+		log.Printf("INFLUX WRITER FLUSHED AND CLOSED")
+
+		geoClient.Close()
+
+		log.Printf("GEO CLIENT CLOSED")
 	},
 }

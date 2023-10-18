@@ -1,7 +1,6 @@
 package intake
 
 import (
-	"context"
 	"log"
 
 	"github.com/DmitriyVTitov/size"
@@ -12,13 +11,20 @@ import (
 
 type Intaker struct {
 	syslogChannel syslog.LogPartsChannel
-	influxClient  api.WriteAPIBlocking
+	inflixWriter  api.WriteAPI
 	geoClient     *geoip2.Reader
 }
 
 func (i Intaker) Consume() {
 
 	tagger := Tagger{i.geoClient}
+
+	// Create go proc for reading and logging errors
+	go func() {
+		for err := range i.inflixWriter.Errors() {
+			log.Printf("Error writing to influxdb: %v\n", err)
+		}
+	}()
 
 	for logParts := range i.syslogChannel {
 		if message, ok := logParts["message"]; ok {
@@ -33,11 +39,8 @@ func (i Intaker) Consume() {
 
 			log.Printf("Writing point of size %v to measurement %v", size.Of(point), bunny.Url.Host)
 
-			err = i.influxClient.WritePoint(context.Background(), point)
-			if err != nil {
-				log.Printf("Write error: %v\n", err)
-				continue
-			}
+			// we're using the nonblocking client so this never errors (see above)
+			i.inflixWriter.WritePoint(point)
 		}
 	}
 }
