@@ -1,8 +1,8 @@
 package intake
 
 import (
-	"log"
 	"fmt"
+	"log"
 	"net"
 	"strings"
 	"time"
@@ -85,7 +85,7 @@ func (t Tagger) Referrer(bunny BunnyLog) (string, string) {
 func (t Tagger) FileType(bunny BunnyLog) (string, string) {
 
 	slashIndex := strings.LastIndex(bunny.Url.Path, "/")
-	filename := bunny.Url.Path[(slashIndex+1):]
+	filename := bunny.Url.Path[(slashIndex + 1):]
 
 	if filename == "" {
 		return "filetype", "page"
@@ -97,7 +97,7 @@ func (t Tagger) FileType(bunny BunnyLog) (string, string) {
 		return "filetype", "page"
 	}
 
-	switch t := filename[(dotIndex+1):]; t {
+	switch t := filename[(dotIndex + 1):]; t {
 
 	case "html":
 		return "filetype", "page"

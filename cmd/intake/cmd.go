@@ -3,10 +3,10 @@ package intake
 import (
 	"fmt"
 	"log"
-	"time"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"cbnr/util"
 

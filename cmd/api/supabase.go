@@ -1,6 +1,6 @@
 package api
 
-type SupabaseClient struct {}
+type SupabaseClient struct{}
 
 func (s SupabaseClient) AuthorizeHostname() error {
 	return nil

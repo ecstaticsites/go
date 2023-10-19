@@ -2,13 +2,13 @@ package api
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
-	"net/http"
 	"time"
-	"fmt"
 
 	"cbnr/util"
 
@@ -93,7 +93,7 @@ var ApiCmd = &cobra.Command{
 		log.Printf("GOT SIGNAL TO DIE, cleaning up...")
 
 		ctx := context.Background()
-		ctxTimeout, cancel := context.WithTimeout(ctx, time.Second * 5)
+		ctxTimeout, cancel := context.WithTimeout(ctx, time.Second*5)
 		defer cancel()
 
 		err = server.Shutdown(ctxTimeout)

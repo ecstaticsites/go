@@ -1,6 +1,6 @@
 package api
 
-type BunnyClient struct {}
+type BunnyClient struct{}
 
 func (b BunnyClient) CreateStorageZone() error {
 	return nil

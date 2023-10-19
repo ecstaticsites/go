@@ -115,7 +115,7 @@ func (i InfluxClient) BuildInfluxQuery(hostname, includeBots, groupby, bucketby,
 
 	// if includeBots is true, then we want everything -- so no filter
 	// todo -- isprobablybot is a string ?? should fix that
-	if (includeBots == "false") {
+	if includeBots == "false" {
 		query.WriteString(" ")
 		query.WriteString(fmt.Sprintf("and isprobablybot = 'false'"))
 	}

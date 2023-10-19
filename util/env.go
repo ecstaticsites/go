@@ -7,7 +7,7 @@ import (
 
 func GetEnvConfig(name string) (string, error) {
 	value := os.Getenv(name)
-	if (value == "") {
+	if value == "" {
 		return "", fmt.Errorf("No environment variable with name %v", name)
 	}
 	return value, nil

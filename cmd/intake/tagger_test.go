@@ -1,15 +1,15 @@
 package intake
 
 import (
-	"testing"
 	"fmt"
 	"net"
+	"testing"
 
 	"github.com/oschwald/geoip2-golang"
 	"github.com/stretchr/testify/assert"
 )
 
-type MockGeo struct {}
+type MockGeo struct{}
 
 func (m MockGeo) Country(net.IP) (*geoip2.Country, error) {
 	return nil, fmt.Errorf("Not implemented")
@@ -28,15 +28,15 @@ func TestNotBot(t *testing.T) {
 	actual := tagger.Tags(bunny)
 
 	expected := map[string]string{
-		"": "",
-		"browser": "Chrome",
-		"country": "Unknown",
-		"device": "Desktop",
-		"filetype": "image",
-		"isprobablybot": "false",
-		"os": "Windows",
-		"path": "/favicon.ico",
-		"statuscode": "200",
+		"":               "",
+		"browser":        "Chrome",
+		"country":        "Unknown",
+		"device":         "Desktop",
+		"filetype":       "image",
+		"isprobablybot":  "false",
+		"os":             "Windows",
+		"path":           "/favicon.ico",
+		"statuscode":     "200",
 		"statuscategory": "2xx",
 	}
 
@@ -57,15 +57,15 @@ func TestBot(t *testing.T) {
 	actual := tagger.Tags(bunny)
 
 	expected := map[string]string{
-		"": "",
-		"browser": "curl",
-		"country": "Unknown",
-		"device": "Unknown",
-		"filetype": "image",
-		"isprobablybot": "true",
-		"os": "",
-		"path": "/favicon.ico",
-		"statuscode": "404",
+		"":               "",
+		"browser":        "curl",
+		"country":        "Unknown",
+		"device":         "Unknown",
+		"filetype":       "image",
+		"isprobablybot":  "true",
+		"os":             "",
+		"path":           "/favicon.ico",
+		"statuscode":     "404",
 		"statuscategory": "4xx",
 	}
 
