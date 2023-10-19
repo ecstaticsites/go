@@ -1,10 +1,14 @@
-package query
+package api
 
 import (
-	"fmt"
+	"context"
 	"log"
+	"os"
+	"os/signal"
+	"syscall"
 	"net/http"
 	"time"
+	"fmt"
 
 	"cbnr/util"
 
@@ -16,31 +20,21 @@ import (
 	"github.com/go-chi/jwtauth/v5"
 )
 
-var QueryCmd = &cobra.Command{
-	Use:   "query",
-	Short: "query - starts an API server which can be queried for data",
+var ApiCmd = &cobra.Command{
+	Use:   "api",
+	Short: "api - handles administrative tasks regarding bunny and supabase",
 	Run: func(cmd *cobra.Command, args []string) {
 
 		log.Printf("STARTING")
+
+		// set up channel to handle graceful shutdown
+		done := make(chan os.Signal, 1)
+		signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
 		httpPort, err := util.GetEnvConfig("HTTP_LISTENER_PORT")
 		if err != nil {
 			log.Fatalf("Unable to get http listener port from environment: %v", err)
 		}
-
-		influxUrl, err := util.GetEnvConfig("INFLUX_URL")
-		if err != nil {
-			log.Fatalf("Unable to get influx location from environment: %v", err)
-		}
-
-		influxDbName, err := util.GetEnvConfig("INFLUX_DB_NAME")
-		if err != nil {
-			log.Fatalf("Unable to get influx DB name from environment: %v", err)
-		}
-
-		i := InfluxClient{influxUrl, influxDbName}
-
-		log.Printf("INFLUX PARAMS PARSED, SET UP STRUCT")
 
 		corsOrigin, err := util.GetEnvConfig("CORS_ALLOWED_ORIGIN")
 		if err != nil {
@@ -82,10 +76,31 @@ var QueryCmd = &cobra.Command{
 		r.Use(jwtauth.Verifier(authOptions.JwtSecret))
 		r.Use(authOptions.Authenticator)
 
-		r.Get("/query", i.HandleQuery)
+		s := Server{SupabaseClient{}, BunnyClient{}}
+
+		r.Get("/new", s.CreateSite)
 
 		log.Printf("MIDDLEWARES SET UP, WILL LISTEN ON %v...", httpPort)
 
-		http.ListenAndServe(fmt.Sprintf(":%v", httpPort), r)
+		server := http.Server{Addr: fmt.Sprintf(":%v", httpPort), Handler: r}
+		go server.ListenAndServe()
+
+		log.Printf("HTTP SERVER STARTED IN GOROUTINE, waiting to die...")
+
+		// block here until we get some sort of interrupt or kill
+		<-done
+
+		log.Printf("GOT SIGNAL TO DIE, cleaning up...")
+
+		ctx := context.Background()
+		ctxTimeout, cancel := context.WithTimeout(ctx, time.Second * 5)
+		defer cancel()
+
+		err = server.Shutdown(ctxTimeout)
+		if err != nil {
+			log.Fatalf("Could not cleanly shut down http server: %v", err)
+		}
+
+		log.Printf("ALL DONE, GOODBYE")
 	},
 }

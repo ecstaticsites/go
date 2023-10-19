@@ -71,7 +71,8 @@ var IntakeCmd = &cobra.Command{
 		// https://github.com/influxdata/influxdb-client-go#non-blocking-write-client
 		// flushes every 1s or 1000 points, whichever comes first, and sets loglevel 2 (info)
 		// default async retries is 5, we will want to tune (lower) this
-		influxOpts := influxdb2.DefaultOptions().SetBatchSize(1000).SetFlushInterval(1000).SetLogLevel(2)
+		defaultOpts := influxdb2.DefaultOptions()
+		influxOpts := defaultOpts.SetBatchSize(1000).SetFlushInterval(1000).SetPrecision(time.Second).SetLogLevel(2)
 
 		// Empty value in auth parameter for an unauthenticated server
 		influxClient := influxdb2.NewClientWithOptions(influxUrl, "", influxOpts)

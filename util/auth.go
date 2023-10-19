@@ -1,4 +1,4 @@
-package query
+package util
 
 import (
 	"fmt"
@@ -11,8 +11,8 @@ import (
 )
 
 type AuthOptions struct {
-	permissive bool
-	jwtSecret *jwtauth.JWTAuth
+	Permissive bool
+	JwtSecret  *jwtauth.JWTAuth
 }
 
 // derived from https://github.com/go-chi/jwtauth/blob/master/jwtauth.go#L161
@@ -25,7 +25,7 @@ func (a AuthOptions) Authenticator(next http.Handler) http.Handler {
 			return
 		}
 
-		if a.permissive {
+		if a.Permissive {
 
 			log.Printf("Permissive mode is enabled, not validating JWT tokens! SHOULD NOT SEE IN PROD")
 

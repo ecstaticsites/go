@@ -75,3 +75,18 @@ tasks:
     - 8080:8080
     command: |
       out/cbnr query
+  api:
+    cache: false
+    dependencies:
+    - build
+    environment:
+      # need to skip JWT validation in dev
+      PERMISSIVE_MODE: "true"
+      HTTP_LISTENER_PORT: "8090"
+      # would love to use wildcard here, but disallowed with credentials
+      CORS_ALLOWED_ORIGIN: "http://127.0.0.1:5173"
+      JWT_SECRET: "supersecretplaceholder"
+    ports:
+    - 8090:8090
+    command: |
+      out/cbnr api

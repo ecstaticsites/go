@@ -76,8 +76,6 @@ func (i InfluxClient) HandleQuery(out http.ResponseWriter, req *http.Request) {
 		bucketby = "1h"
 	}
 
-	// todo, possible DDOS protection, validate auth header exists and looks correct here
-
 	queryStr, err := i.BuildInfluxQuery(hostname, includeBots, groupby, bucketby, tz, unixStart, unixEnd)
 	if err != nil {
 		http.Error(out, fmt.Sprintf("Unable to create valid query for influxdb: %w", err), http.StatusBadRequest)
