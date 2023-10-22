@@ -1,9 +1,13 @@
 package query
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"cbnr/util"
@@ -14,6 +18,11 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 	"github.com/go-chi/jwtauth/v5"
+
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	promHttpMetrics "github.com/slok/go-http-metrics/metrics/prometheus"
+	promHttpMiddleware "github.com/slok/go-http-metrics/middleware"
+	promHttpStd "github.com/slok/go-http-metrics/middleware/std"
 )
 
 var QueryCmd = &cobra.Command{
@@ -23,9 +32,18 @@ var QueryCmd = &cobra.Command{
 
 		log.Printf("STARTING")
 
+		// set up channel to handle graceful shutdown
+		done := make(chan os.Signal, 1)
+		signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+
 		httpPort, err := util.GetEnvConfig("HTTP_LISTENER_PORT")
 		if err != nil {
 			log.Fatalf("Unable to get http listener port from environment: %v", err)
+		}
+
+		metricsPort, err := util.GetEnvConfig("METRICS_LISTENER_PORT")
+		if err != nil {
+			log.Fatalf("Unable to get metrics listener port from environment: %v", err)
 		}
 
 		influxUrl, err := util.GetEnvConfig("INFLUX_URL")
@@ -72,6 +90,10 @@ var QueryCmd = &cobra.Command{
 			JwtSecret:  jwtauth.New("HS256", []byte(jwtSecret), nil),
 		}
 
+		promMiddleware := promHttpMiddleware.New(promHttpMiddleware.Config{
+			Recorder: promHttpMetrics.NewRecorder(promHttpMetrics.Config{}),
+		})
+
 		r := chi.NewRouter()
 
 		r.Use(middleware.Recoverer)
@@ -81,11 +103,50 @@ var QueryCmd = &cobra.Command{
 		r.Use(cors.Handler(corsOptions))
 		r.Use(jwtauth.Verifier(authOptions.JwtSecret))
 		r.Use(authOptions.Authenticator)
+		r.Use(promHttpStd.HandlerProvider("", promMiddleware))
 
 		r.Get("/query", i.HandleQuery)
 
-		log.Printf("MIDDLEWARES SET UP, WILL LISTEN ON %v...", httpPort)
+		log.Printf("MIDDLEWARES SET UP, STARTING SERVERS")
 
-		http.ListenAndServe(fmt.Sprintf(":%v", httpPort), r)
+		primary := http.Server{Addr: fmt.Sprintf(":%v", httpPort), Handler: r}
+		metrics := http.Server{Addr: fmt.Sprintf(":%v", metricsPort), Handler: promhttp.Handler()}
+
+		go func() {
+			log.Printf("PRIMARY SERVER LISTENING ON %v", httpPort)
+			err := primary.ListenAndServe()
+			if err != nil {
+				log.Fatalf("Error while serving primary handler: %v", err)
+			}
+		}()
+
+		go func() {
+			log.Printf("METRICS SERVER LISTENING ON %v", metricsPort)
+			err := metrics.ListenAndServe()
+			if err != nil {
+				log.Fatalf("Error while serving metrics handler: %v", err)
+			}
+		}()
+
+		// block here until we get some sort of interrupt or kill
+		<-done
+
+		log.Printf("GOT SIGNAL TO DIE, cleaning up...")
+
+		ctx := context.Background()
+		ctxTimeout, cancel := context.WithTimeout(ctx, time.Second*5)
+		defer cancel()
+
+		err = primary.Shutdown(ctxTimeout)
+		if err != nil {
+			log.Fatalf("Could not cleanly shut down primary server: %v", err)
+		}
+
+		err = metrics.Shutdown(ctxTimeout)
+		if err != nil {
+			log.Fatalf("Could not cleanly shut down metrics server: %v", err)
+		}
+
+		log.Printf("ALL DONE, GOODBYE")
 	},
 }

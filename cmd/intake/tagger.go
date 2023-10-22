@@ -45,11 +45,17 @@ func (t Tagger) Device(bunny BunnyLog) (string, string) {
 
 func (t Tagger) Browser(bunny BunnyLog) (string, string) {
 	ua := useragent.Parse(bunny.UserAgent)
+	if ua.Name == "-" {
+		return "browser", "Unknown"
+	}
 	return "browser", ua.Name
 }
 
 func (t Tagger) Os(bunny BunnyLog) (string, string) {
 	ua := useragent.Parse(bunny.UserAgent)
+	if ua.OS == "" {
+		return "os", "Unknown"
+	}
 	return "os", ua.OS
 }
 
@@ -57,6 +63,10 @@ func (t Tagger) Country(bunny BunnyLog) (string, string) {
 	record, err := t.geoClient.Country(bunny.RemoteIp)
 	if err != nil {
 		log.Printf("Unable to get country for IP %v: %v", bunny.RemoteIp, err)
+		return "country", "Unknown"
+	}
+	if record.Country.Names["en"] == "" {
+		log.Printf("Country came back blank for IP %v", bunny.RemoteIp)
 		return "country", "Unknown"
 	}
 	return "country", record.Country.Names["en"]
@@ -88,46 +98,46 @@ func (t Tagger) FileType(bunny BunnyLog) (string, string) {
 	filename := bunny.Url.Path[(slashIndex + 1):]
 
 	if filename == "" {
-		return "filetype", "page"
+		return "filetype", "Page"
 	}
 
 	dotIndex := strings.LastIndex(filename, ".")
 
 	if dotIndex == -1 {
-		return "filetype", "page"
+		return "filetype", "Page"
 	}
 
 	switch t := filename[(dotIndex + 1):]; t {
 
 	case "html":
-		return "filetype", "page"
+		return "filetype", "Page"
 
 	case "css":
-		return "filetype", "stylesheet"
+		return "filetype", "Stylesheet"
 
 	case "js":
-		return "filetype", "javascript"
+		return "filetype", "Javascript"
 
 	case "img", "jpg", "jpeg", "png", "ico", "gif", "svg", "heic":
-		return "filetype", "image"
+		return "filetype", "Image"
 
 	case "ttf", "otf", "woff", "woff2":
-		return "filetype", "font"
+		return "filetype", "Font"
 
 	case "txt", "csv", "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx":
-		return "filetype", "document"
+		return "filetype", "Document"
 
 	case "zip", "gz", "rar", "iso", "tar", "lzma", "bz2", "7z", "z", "tgz":
-		return "filetype", "archive"
+		return "filetype", "Archive"
 
 	case "mp3", "m4a", "wav", "ogg", "flac", "midi", "aac", "wma":
-		return "filetype", "audio"
+		return "filetype", "Audio"
 
 	case "mpg", "mpeg", "avi", "mp4", "flv", "h264", "mov", "mk4", "mkv", "m4v":
-		return "filetype", "video"
+		return "filetype", "Video"
 
 	case "xml":
-		return "filetype", "rssfeed"
+		return "filetype", "RSS Feed"
 
 	default:
 		return "filetype", "Unknown"
