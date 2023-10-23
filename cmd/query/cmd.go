@@ -77,17 +77,19 @@ var QueryCmd = &cobra.Command{
 			log.Fatalf("Unable to get permissive mode status from environment: %v", err)
 		}
 
-		jwtSecret, err := util.GetEnvConfig("JWT_SECRET")
+		jwtSecretStr, err := util.GetEnvConfig("JWT_SECRET")
 		if err != nil {
 			log.Fatalf("Unable to get JWT secret token from environment: %v", err)
 		}
+
+		jwtSecret := jwtauth.New("HS256", []byte(jwtSecretStr), nil)
 
 		// as soon as supabase supports RS256 / asymmetric JWT encryption, get this
 		// out of here and replace with the public key just for validation
 		// https://github.com/orgs/supabase/discussions/4059
 		authOptions := util.AuthOptions{
-			Permissive: (permissiveStr == "true"),
-			JwtSecret:  jwtauth.New("HS256", []byte(jwtSecret), nil),
+			Permissive:      (permissiveStr == "true"),
+			EnforceHostname: true,
 		}
 
 		promMiddleware := promHttpMiddleware.New(promHttpMiddleware.Config{
@@ -101,7 +103,7 @@ var QueryCmd = &cobra.Command{
 		r.Use(middleware.AllowContentType("application/json"))
 		r.Use(middleware.Timeout(time.Second))
 		r.Use(cors.Handler(corsOptions))
-		r.Use(jwtauth.Verifier(authOptions.JwtSecret))
+		r.Use(jwtauth.Verifier(jwtSecret))
 		r.Use(authOptions.Authenticator)
 		r.Use(promHttpStd.HandlerProvider("", promMiddleware))
 

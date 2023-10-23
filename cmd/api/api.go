@@ -44,7 +44,7 @@ func (s Server) CreateSite(out http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	err = s.supabase.AuthorizeHostname()
+	err = s.supabase.AuthorizeHostname(req.Context(), "a", "b")
 	if err != nil {
 		http.Error(out, fmt.Sprintf("Unable to authorize user for new hostname: %v", err), http.StatusInternalServerError)
 		return
