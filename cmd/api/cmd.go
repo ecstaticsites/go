@@ -58,11 +58,11 @@ var ApiCmd = &cobra.Command{
 			log.Fatalf("Unable to get JWT secret token from environment: %v", err)
 		}
 
-		jwtSecret := jwtauth.New("HS256", []byte(jwtSecretStr), nil)
-
 		// as soon as supabase supports RS256 / asymmetric JWT encryption, get this
 		// out of here and replace with the public key just for validation
 		// https://github.com/orgs/supabase/discussions/4059
+		jwtSecret := jwtauth.New("HS256", []byte(jwtSecretStr), nil)
+
 		authOptions := util.AuthOptions{
 			Permissive:      (permissiveStr == "true"),
 			EnforceHostname: false,

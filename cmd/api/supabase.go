@@ -24,6 +24,7 @@ func (s SupabaseClient) AuthorizeHostname(ctx context.Context, userid, hostname 
 		},
 	}
 
+	// needs to be PUT I think?
 	err := requests.
 		URL(s.SupabaseUrl).
 		Pathf("/auth/v1/admin/users/%s", userid).

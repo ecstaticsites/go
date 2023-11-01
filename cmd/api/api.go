@@ -3,6 +3,8 @@ package api
 import (
 	"fmt"
 	"net/http"
+
+	"github.com/go-chi/jwtauth/v5"
 )
 
 type Server struct {
@@ -14,7 +16,25 @@ func (s Server) CreateSite(out http.ResponseWriter, req *http.Request) {
 
 	var err error
 
-	err = s.bunny.CreateStorageZone()
+	_, claims, err := jwtauth.FromContext(req.Context())
+	if err != nil {
+		http.Error(out, fmt.Sprintf("Unable to parse claims from JWT: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	userId, found := claims["user_id"]
+	if !found {
+		http.Error(out, fmt.Sprintf("No 'user_id' field found in JWT claims"), http.StatusInternalServerError)
+		return
+	}
+
+	userIdStr, ok := userId.(string)
+	if !ok {
+		http.Error(out, "Claims 'user_id' could not be parsed as string", http.StatusInternalServerError)
+		return
+	}
+
+	_, err = s.bunny.CreateStorageZone(req.Context(), "aaa")
 	if err != nil {
 		http.Error(out, fmt.Sprintf("Unable to create new storage zone: %v", err), http.StatusInternalServerError)
 		return
@@ -44,7 +64,7 @@ func (s Server) CreateSite(out http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	err = s.supabase.AuthorizeHostname(req.Context(), "a", "b")
+	err = s.supabase.AuthorizeHostname(req.Context(), userIdStr, "b")
 	if err != nil {
 		http.Error(out, fmt.Sprintf("Unable to authorize user for new hostname: %v", err), http.StatusInternalServerError)
 		return

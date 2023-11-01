@@ -28,7 +28,7 @@ func (a AuthOptions) Authenticator(next http.Handler) http.Handler {
 			token, claims, err := jwtauth.FromContext(req.Context())
 
 			if err != nil {
-				http.Error(out, err.Error(), http.StatusUnauthorized)
+				http.Error(out, fmt.Sprintf("Unable to parse claims from JWT: %v", err), http.StatusUnauthorized)
 				return
 			}
 
