@@ -92,3 +92,13 @@ tasks:
     - 8090:8090
     command: |
       out/cbnr api
+  git:
+    cache: false
+    dependencies:
+    - build
+    environment:
+      HTTP_LISTENER_PORT: "8090"
+    ports:
+    - 8090:8090
+    command: |
+      out/cbnr git

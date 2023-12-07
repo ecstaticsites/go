@@ -2,6 +2,7 @@ package main
 
 import (
 	"cbnr/cmd/api"
+	"cbnr/cmd/git"
 	"cbnr/cmd/intake"
 	"cbnr/cmd/query"
 
@@ -14,6 +15,7 @@ func main() {
 		Short: "cbnr - parse, store, and query server access logs",
 	}
 	rootCmd.AddCommand(api.ApiCmd)
+	rootCmd.AddCommand(git.GitCmd)
 	rootCmd.AddCommand(intake.IntakeCmd)
 	rootCmd.AddCommand(query.QueryCmd)
 	rootCmd.Execute()
