@@ -53,6 +53,8 @@ var ApiCmd = &cobra.Command{
 			log.Fatalf("Unable to get permissive mode status from environment: %v", err)
 		}
 
+		permissive := permissiveStr == "true"
+
 		jwtSecretStr, err := util.GetEnvConfig("JWT_SECRET")
 		if err != nil {
 			log.Fatalf("Unable to get JWT secret token from environment: %v", err)
@@ -63,11 +65,6 @@ var ApiCmd = &cobra.Command{
 		// https://github.com/orgs/supabase/discussions/4059
 		jwtSecret := jwtauth.New("HS256", []byte(jwtSecretStr), nil)
 
-		authOptions := util.AuthOptions{
-			Permissive:      (permissiveStr == "true"),
-			EnforceHostname: false,
-		}
-
 		r := chi.NewRouter()
 
 		r.Use(middleware.Recoverer)
@@ -76,7 +73,7 @@ var ApiCmd = &cobra.Command{
 		r.Use(middleware.Timeout(time.Second))
 		r.Use(cors.Handler(corsOptions))
 		r.Use(jwtauth.Verifier(jwtSecret))
-		r.Use(authOptions.Authenticator)
+		r.Use(util.CheckJwtMiddleware(permissive, false, false))
 
 		s := Server{SupabaseClient{"a"}, BunnyClient{}}
 

@@ -10,6 +10,7 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+	"strings"
 
 	"cbnr/util"
 
@@ -17,19 +18,28 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/jwtauth/v5"
 
 	"github.com/asim/git-http-backend/server"
 )
 
-// when you do "git push" to a remote, the first request is a GET to the
-// location /reponame/info/refs. When we detect that happens, we init a bare
-// repository at the requested location, so pushes always work
-func GitInitBare(next http.Handler) http.Handler {
+func GitInitMiddleware(next http.Handler) http.Handler {
   return http.HandlerFunc(func(out http.ResponseWriter, req *http.Request) {
 
-  	log.Printf("git init bare %s", "/tmp" + req.URL.Path)
+  	// Only need to init the repository at the start of the "git push", which
+  	// always begins with this GET to /reponame/info/refs, so if this request
+  	// is not that, it must not be the start of a push
+  	if !(req.Method == "GET" && strings.HasSuffix(req.URL.Path, "/info/refs")) {
+  		next.ServeHTTP(out, req)
+  		return
+  	}
 
-  	cmd := exec.Command("git", "init", "--bare", "/tmp/aaaa")
+  	repoName := strings.Split(req.URL.Path, "/")[1]
+  	repoPath := "/tmp/" + repoName
+
+  	log.Printf("git init bare %s", repoPath)
+
+  	cmd := exec.Command("git", "init", repoPath)
     stdout, err := cmd.Output()
 
     if err != nil {
@@ -61,18 +71,35 @@ var GitCmd = &cobra.Command{
 			log.Fatalf("Unable to get http listener port from environment: %v", err)
 		}
 
+		permissiveStr, err := util.GetEnvConfig("PERMISSIVE_MODE")
+		if err != nil {
+			log.Fatalf("Unable to get permissive mode status from environment: %v", err)
+		}
+
+		permissive := permissiveStr == "true"
+
+		jwtSecretStr, err := util.GetEnvConfig("JWT_SECRET")
+		if err != nil {
+			log.Fatalf("Unable to get JWT secret token from environment: %v", err)
+		}
+
+		// as soon as supabase supports RS256 / asymmetric JWT encryption, get this
+		// out of here and replace with the public key just for validation
+		// https://github.com/orgs/supabase/discussions/4059
+		jwtSecret := jwtauth.New("HS256", []byte(jwtSecretStr), nil)
+
 		r := chi.NewRouter()
 
 		r.Use(middleware.Recoverer)
 		r.Use(middleware.Logger)
-		r.Use(GitInitBare)
 		//r.Use(middleware.AllowContentType("application/json"))
 		r.Use(middleware.Timeout(time.Second))
+		r.Use(util.BasicAuthJwtVerifier(jwtSecret))
+		r.Use(util.CheckJwtMiddleware(permissive, false, true))
+		r.Use(GitInitMiddleware)
 
-		r.Get("/aaaa", server.Handler())
-		r.Get("/aaaa/*", server.Handler())
-		r.Post("/aaaa", server.Handler())
-		r.Post("/aaaa/*", server.Handler())
+		r.Get("/*", server.Handler())
+		r.Post("/*", server.Handler())
 
 		log.Printf("MIDDLEWARES SET UP, WILL LISTEN ON %v...", httpPort)
 

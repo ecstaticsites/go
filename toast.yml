@@ -97,7 +97,10 @@ tasks:
     dependencies:
     - build
     environment:
+      # need to skip JWT validation in dev
+      PERMISSIVE_MODE: "true"
       HTTP_LISTENER_PORT: "8090"
+      JWT_SECRET: "supersecretplaceholder"
     ports:
     - 8090:8090
     command: |

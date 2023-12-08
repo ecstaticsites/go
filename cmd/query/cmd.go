@@ -77,6 +77,8 @@ var QueryCmd = &cobra.Command{
 			log.Fatalf("Unable to get permissive mode status from environment: %v", err)
 		}
 
+		permissive := permissiveStr == "true"
+
 		jwtSecretStr, err := util.GetEnvConfig("JWT_SECRET")
 		if err != nil {
 			log.Fatalf("Unable to get JWT secret token from environment: %v", err)
@@ -86,11 +88,6 @@ var QueryCmd = &cobra.Command{
 		// out of here and replace with the public key just for validation
 		// https://github.com/orgs/supabase/discussions/4059
 		jwtSecret := jwtauth.New("HS256", []byte(jwtSecretStr), nil)
-
-		authOptions := util.AuthOptions{
-			Permissive:      (permissiveStr == "true"),
-			EnforceHostname: true,
-		}
 
 		promMiddleware := promHttpMiddleware.New(promHttpMiddleware.Config{
 			Recorder: promHttpMetrics.NewRecorder(promHttpMetrics.Config{}),
@@ -104,7 +101,7 @@ var QueryCmd = &cobra.Command{
 		r.Use(middleware.Timeout(time.Second))
 		r.Use(cors.Handler(corsOptions))
 		r.Use(jwtauth.Verifier(jwtSecret))
-		r.Use(authOptions.Authenticator)
+		r.Use(util.CheckJwtMiddleware(permissive, true, false))
 		r.Use(promHttpStd.HandlerProvider("", promMiddleware))
 
 		r.Get("/query", i.HandleQuery)
