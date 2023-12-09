@@ -21,7 +21,14 @@ import (
 	"github.com/go-chi/jwtauth/v5"
 
 	"github.com/asim/git-http-backend/server"
+
+	"github.com/carlmjohnson/requests"
 )
+
+type Storage struct {
+	Name  string `json:"storage_name"`
+	Token string `json:"storage_token"`
+}
 
 func GitInitMiddleware(next http.Handler) http.Handler {
   return http.HandlerFunc(func(out http.ResponseWriter, req *http.Request) {
@@ -51,6 +58,67 @@ func GitInitMiddleware(next http.Handler) http.Handler {
     log.Printf(string(stdout))
 
     next.ServeHTTP(out, req)
+	})
+}
+
+// gets the site ID from the URL path, then makes a query to supabase (using
+// the JWT gotten from BasicAuthJwtVerifier) to make sure the user actually owns
+// that site ID and can push there, then uses the storage name and pass to create
+// a post-receive hook in the repo created by GitInitMiddleware
+func RenderPostReceiveHookMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(out http.ResponseWriter, req *http.Request) {
+
+  	// Only need to init the repository at the start of the "git push", which
+  	// always begins with this GET to /reponame/info/refs, so if this request
+  	// is not that, it must not be the start of a push
+  	if !(req.Method == "GET" && strings.HasSuffix(req.URL.Path, "/info/refs")) {
+  		next.ServeHTTP(out, req)
+  		return
+  	}
+
+		token := req.Header.Get("Authorization")
+
+		repoName := strings.Split(req.URL.Path, "/")[1]
+
+		var storage []Storage
+
+		err := requests.
+			URL("https://ewwccbgjnulfgcvfrsvj.supabase.co").
+			Path("/rest/v1/site").
+			Param("select", "storage_name,storage_token").
+			Param("id", fmt.Sprintf("eq.%s", repoName)).
+			Header("apikey", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV3d2NjYmdqbnVsZmdjdmZyc3ZqIiwicm9sZSI6ImFub24iLCJpYXQiOjE2OTM1ODE2ODUsImV4cCI6MjAwOTE1NzY4NX0.gI3YdNSC5GMkda2D2QPRMvnBdaMOS2ynfFKxis5-WKs").
+			Header("Authorization", token).
+			ToJSON(&storage).
+			Fetch(req.Context())
+
+		if err != nil {
+			http.Error(out, fmt.Sprintf("Error occurred querying sites from supabase, dying: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		if len(storage) == 0 {
+			http.Error(out, fmt.Sprintf("No result rows from supabase for site ID %v (possibly RLS unauthorized?)", repoName), http.StatusUnauthorized)
+			return
+		}
+
+		if len(storage) > 1 {
+			http.Error(out, fmt.Sprintf("Too many rows from supabase, what do I do: %v", storage), http.StatusInternalServerError)
+			return
+		}
+
+		log.Printf("site ID found for repo %s, storage %s", repoName, storage[0])
+
+		hookPath := fmt.Sprintf("/tmp/%s/.git/hooks/post-receive", repoName)
+		hookData := []byte("#!/bin/sh\necho 'got it thank you'\ntouch /tmp/got\n")
+		err = os.WriteFile(hookPath, hookData, 0777)
+		if err != nil {
+			log.Printf("THIS DID NOT WORK: %s", err)
+		}
+
+		// user is allowed to push to this site ID, pass it through
+		next.ServeHTTP(out, req)
+		return
 	})
 }
 
@@ -95,8 +163,9 @@ var GitCmd = &cobra.Command{
 		//r.Use(middleware.AllowContentType("application/json"))
 		r.Use(middleware.Timeout(time.Second))
 		r.Use(util.BasicAuthJwtVerifier(jwtSecret))
-		r.Use(util.CheckJwtMiddleware(permissive, false, true))
+		r.Use(util.CheckJwtMiddleware(permissive, true))
 		r.Use(GitInitMiddleware)
+		r.Use(RenderPostReceiveHookMiddleware)
 
 		r.Get("/*", server.Handler())
 		r.Post("/*", server.Handler())

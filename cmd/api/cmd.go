@@ -73,7 +73,7 @@ var ApiCmd = &cobra.Command{
 		r.Use(middleware.Timeout(time.Second))
 		r.Use(cors.Handler(corsOptions))
 		r.Use(jwtauth.Verifier(jwtSecret))
-		r.Use(util.CheckJwtMiddleware(permissive, false, false))
+		r.Use(util.CheckJwtMiddleware(permissive, false))
 
 		s := Server{SupabaseClient{"a"}, BunnyClient{}}
 

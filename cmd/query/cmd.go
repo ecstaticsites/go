@@ -101,7 +101,8 @@ var QueryCmd = &cobra.Command{
 		r.Use(middleware.Timeout(time.Second))
 		r.Use(cors.Handler(corsOptions))
 		r.Use(jwtauth.Verifier(jwtSecret))
-		r.Use(util.CheckJwtMiddleware(permissive, true, false))
+		r.Use(util.CheckJwtMiddleware(permissive, false))
+		r.Use(util.CheckHostnameMiddleware(permissive))
 		r.Use(promHttpStd.HandlerProvider("", promMiddleware))
 
 		r.Get("/query", i.HandleQuery)
