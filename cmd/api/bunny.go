@@ -8,7 +8,7 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-type BunnyClient struct{
+type BunnyClient struct {
 	BunnyUrl       string
 	BunnyAccessKey string
 }

@@ -7,7 +7,7 @@ import (
 	"github.com/carlmjohnson/requests"
 )
 
-type SupabaseClient struct{
+type SupabaseClient struct {
 	SupabaseUrl string
 }
 
@@ -20,7 +20,7 @@ func (s SupabaseClient) AuthorizeHostname(ctx context.Context, userid, hostname 
 	// this is not overwriting the
 	body := AuthorizeHostnameBody{
 		AppMetadata: map[string][]string{
-			"hostnames": []string{hostname},
+			"hostnames": {hostname},
 		},
 	}
 

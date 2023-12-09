@@ -8,9 +8,9 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
-	"strings"
 
 	"cbnr/util"
 
@@ -31,33 +31,33 @@ type Storage struct {
 }
 
 func GitInitMiddleware(next http.Handler) http.Handler {
-  return http.HandlerFunc(func(out http.ResponseWriter, req *http.Request) {
+	return http.HandlerFunc(func(out http.ResponseWriter, req *http.Request) {
 
-  	// Only need to init the repository at the start of the "git push", which
-  	// always begins with this GET to /reponame/info/refs, so if this request
-  	// is not that, it must not be the start of a push
-  	if !(req.Method == "GET" && strings.HasSuffix(req.URL.Path, "/info/refs")) {
-  		next.ServeHTTP(out, req)
-  		return
-  	}
+		// Only need to init the repository at the start of the "git push", which
+		// always begins with this GET to /reponame/info/refs, so if this request
+		// is not that, it must not be the start of a push
+		if !(req.Method == "GET" && strings.HasSuffix(req.URL.Path, "/info/refs")) {
+			next.ServeHTTP(out, req)
+			return
+		}
 
-  	repoName := strings.Split(req.URL.Path, "/")[1]
-  	repoPath := "/tmp/" + repoName
+		repoName := strings.Split(req.URL.Path, "/")[1]
+		repoPath := "/tmp/" + repoName
 
-  	log.Printf("git init bare %s", repoPath)
+		log.Printf("git init bare %s", repoPath)
 
-  	cmd := exec.Command("git", "init", repoPath)
-    stdout, err := cmd.Output()
+		cmd := exec.Command("git", "init", repoPath)
+		stdout, err := cmd.Output()
 
-    if err != nil {
-       log.Printf(err.Error())
-       return
-    }
+		if err != nil {
+			log.Printf(err.Error())
+			return
+		}
 
-    // Print the output
-    log.Printf(string(stdout))
+		// Print the output
+		log.Printf(string(stdout))
 
-    next.ServeHTTP(out, req)
+		next.ServeHTTP(out, req)
 	})
 }
 
@@ -68,13 +68,13 @@ func GitInitMiddleware(next http.Handler) http.Handler {
 func RenderPostReceiveHookMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(out http.ResponseWriter, req *http.Request) {
 
-  	// Only need to init the repository at the start of the "git push", which
-  	// always begins with this GET to /reponame/info/refs, so if this request
-  	// is not that, it must not be the start of a push
-  	if !(req.Method == "GET" && strings.HasSuffix(req.URL.Path, "/info/refs")) {
-  		next.ServeHTTP(out, req)
-  		return
-  	}
+		// Only need to init the repository at the start of the "git push", which
+		// always begins with this GET to /reponame/info/refs, so if this request
+		// is not that, it must not be the start of a push
+		if !(req.Method == "GET" && strings.HasSuffix(req.URL.Path, "/info/refs")) {
+			next.ServeHTTP(out, req)
+			return
+		}
 
 		token := req.Header.Get("Authorization")
 
@@ -121,7 +121,6 @@ func RenderPostReceiveHookMiddleware(next http.Handler) http.Handler {
 		return
 	})
 }
-
 
 var GitCmd = &cobra.Command{
 	Use:   "git",

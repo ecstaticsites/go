@@ -5,10 +5,10 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/carlmjohnson/requests"
 	"github.com/go-chi/jwtauth/v5"
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	"golang.org/x/exp/slices"
-	"github.com/carlmjohnson/requests"
 )
 
 type Body struct {
