@@ -2,7 +2,7 @@ FROM ubuntu:22.04
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y git ca-certificates sshpass
+RUN apt-get update && apt-get install -y git ca-certificates sshpass curl
 
 RUN update-ca-certificates
 
