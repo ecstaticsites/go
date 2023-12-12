@@ -10,6 +10,7 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"text/template"
 	"time"
 
 	"cbnr/util"
@@ -109,14 +110,35 @@ func RenderPostReceiveHookMiddleware(next http.Handler) http.Handler {
 
 		log.Printf("site ID found for repo %s, storage %s", repoName, storage[0])
 
-		hookPath := fmt.Sprintf("/tmp/%s/.git/hooks/post-receive", repoName)
-		hookData := []byte("#!/bin/sh\necho 'got it thank you'\ntouch /tmp/got\n")
-		err = os.WriteFile(hookPath, hookData, 0777)
-		if err != nil {
-			log.Printf("THIS DID NOT WORK: %s", err)
+		hookValues := HookValues{
+			SiteId: repoName,
+			StorageHost: "storage.bunnycdn.com",
+			StorageName: storage[0].Name,
+			StorageToken: storage[0].Token,
 		}
 
-		// user is allowed to push to this site ID, pass it through
+		hookPath := fmt.Sprintf("/tmp/%s/.git/hooks/post-receive", repoName)
+
+		tpl, err := template.New("naaaaame").Parse(HookTemplate)
+		if err != nil {
+			http.Error(out, fmt.Sprintf("Unable to render post-receive hook template: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		file, err := os.OpenFile(hookPath, os.O_RDWR|os.O_CREATE, 0777)
+		if err != nil {
+			http.Error(out, fmt.Sprintf("Could not create and open post-receive hook file: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		defer file.Close()
+
+		err = tpl.Execute(file, hookValues)
+		if err != nil {
+			http.Error(out, fmt.Sprintf("Could not render template into hook file: %v", err), http.StatusInternalServerError)
+			return
+		}
+
 		next.ServeHTTP(out, req)
 		return
 	})

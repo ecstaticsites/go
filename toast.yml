@@ -2,6 +2,10 @@ image: golang:1.21
 command_prefix: set -euxo pipefail
 location: /scratch
 tasks:
+  sshpass:
+    command: |
+      apt-get update
+      apt-get install -y sshpass
   deps:
     input_paths:
     - go.mod
@@ -12,6 +16,7 @@ tasks:
     # I would like to cache this but go-build files prevent it
     cache: false
     dependencies:
+    - sshpass
     - deps
     environment:
       GOCACHE: /scratch/go-build
