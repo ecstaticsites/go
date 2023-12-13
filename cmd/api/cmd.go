@@ -79,12 +79,17 @@ var ApiCmd = &cobra.Command{
 		r.Use(jwtauth.Verifier(jwtSecret))
 		r.Use(util.CheckJwtMiddleware(permissive, false))
 
+		sup := SupabaseClient{
+			SupabaseUrl: "",
+			SupabaseAdminToken: "",
+		}
+
 		bun := BunnyClient{
 			BunnyUrl: "https://api.bunny.net",
 			BunnyAccessKey: "aaaaa",
 		}
 
-		s := Server{SupabaseClient{"a"}, bun}
+		s := Server{sup, bun}
 
 		r.Post("/new", s.CreateSite)
 

@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"fmt"
 	"log"
 
 	"github.com/carlmjohnson/requests"
@@ -24,7 +23,7 @@ type CreateStorageZoneBody struct {
 
 // there are obviously many more fields in the response, we don't care about em
 type CreateStorageZoneResponse struct {
-	Id                 int64    `json:"??????"`
+	Id                 int64    `json:"Id"`
 	Name               string   `json:"Name"`
 	Password           string   `json:"Password"`
 	Region             string   `json:"Region"`
@@ -72,7 +71,7 @@ type CreatePullZoneResponse struct {
 	Hostnames []PullZoneHostname `json:"Hostnames"`
 }
 
-func (b BunnyClient) CreateStorageZone(ctx context.Context, siteId string) (*CreateStorageZoneResponse, error) {
+func (b BunnyClient) CreateStorageZone(ctx context.Context, siteId string) *CreateStorageZoneResponse {
 
 	body := CreateStorageZoneBody{
 		// must be globally unique, like s3 buckets
@@ -85,7 +84,10 @@ func (b BunnyClient) CreateStorageZone(ctx context.Context, siteId string) (*Cre
 		ZoneTier: 1,
 	}
 
+	log.Printf("[INFO] Creating bunny storage zone with request body: %+v", body)
+
 	var resp CreateStorageZoneResponse
+	var errorJson map[string]interface{}
 
 	err := requests.
 		URL(b.BunnyUrl).
@@ -94,29 +96,35 @@ func (b BunnyClient) CreateStorageZone(ctx context.Context, siteId string) (*Cre
 		ContentType("application/json").
 		BodyJSON(&body).
 		ToJSON(&resp).
+		ErrorJSON(&errorJson).
 		Post().
 		Fetch(ctx)
 
 	if err != nil {
-		return nil, fmt.Errorf("Unable to create storage zone in BunnyCDN: %w", err)
+		log.Printf("[ERROR] Unable to create storage zone in BunnyCDN: %w, response: %+v", err, errorJson)
+		return nil
 	}
 
 	if resp.Region != "DE" {
-		return nil, fmt.Errorf("Region was somehow created other than DE: %v", resp.Region)
+		log.Printf("[ERROR] Storage zone region was somehow created other than DE: %v", resp.Region)
+		return nil
 	}
 
 	if !slices.Equal(resp.ReplicationRegions, []string{"NY", "LA", "SYD"}) {
-		return nil, fmt.Errorf("Replication regions somehow created wrong: %v", resp.ReplicationRegions)
+		log.Printf("[ERROR] Storage zone replication regions somehow created wrong: %v", resp.ReplicationRegions)
+		return nil
 	}
 
 	if resp.StorageHostname != "storage.bunnycdn.com" {
-		return nil, fmt.Errorf("Storage hostname somehow not expected: %v", resp.StorageHostname)
+		log.Printf("[ERROR] Storage zone hostname somehow not expected: %v", resp.StorageHostname)
+		return nil
 	}
 
-	return &resp, nil
+	log.Printf("[INFO] Bunny storage zone with ID %v successfully created", siteId)
+	return &resp
 }
 
-func (b BunnyClient) CreatePullZone(ctx context.Context, siteId string, storage *CreateStorageZoneResponse) (string, error) {
+func (b BunnyClient) CreatePullZone(ctx context.Context, siteId string, storage *CreateStorageZoneResponse) string {
 
 	body := CreatePullZoneBody{
 		Name: siteId,
@@ -142,9 +150,10 @@ func (b BunnyClient) CreatePullZone(ctx context.Context, siteId string, storage 
   	EnableAutoSSL: true,
 	}
 
-	log.Printf("%v", body)
+	log.Printf("[INFO] Creating bunny pull zone with request body: %+v", body)
 
 	var resp CreatePullZoneResponse
+	var errorJson map[string]interface{}
 
 	err := requests.
 		URL(b.BunnyUrl).
@@ -153,24 +162,30 @@ func (b BunnyClient) CreatePullZone(ctx context.Context, siteId string, storage 
 		ContentType("application/json").
 		BodyJSON(&body).
 		ToJSON(&resp).
+		ErrorJSON(&errorJson).
 		Post().
 		Fetch(ctx)
 
 	if err != nil {
-		return "", fmt.Errorf("Unable to create pull zone in BunnyCDN: %w", err)
+		log.Printf("[ERROR] Unable to create pull zone in BunnyCDN: %w, response: %+v", err, errorJson)
+		return ""
 	}
 
 	if !resp.Enabled  {
-		return "", fmt.Errorf("Unexpected not enabled created pull zone: %v", resp.Id)
+		log.Printf("[ERROR] Unexpected not enabled created pull zone: %v", resp.Id)
+		return ""
 	}
 
 	if len(resp.Hostnames) != 1 {
-		return "", fmt.Errorf("Incorrect # of hostnames for new pull zone (expected 1): %v", resp.Hostnames)
+		log.Printf("[ERROR] Incorrect # of hostnames for new pull zone (expected 1): %v", resp.Hostnames)
+		return ""
 	}
 
 	if !resp.Hostnames[0].IsSystemHostname {
-		return "", fmt.Errorf("Unexpected not system hostname for new pull zone: %v", resp.Hostnames[0].Id)
+		log.Printf("[ERROR] Unexpected not system hostname for new pull zone: %v", resp.Hostnames[0].Id)
+		return ""
 	}
 
-	return resp.Hostnames[0].Value, nil
+	log.Printf("[INFO] Bunny pull zone with ID %v successfully created", siteId)
+	return resp.Hostnames[0].Value
 }

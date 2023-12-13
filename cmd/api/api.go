@@ -1,13 +1,14 @@
 package api
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 
 	"cbnr/util"
 
-	//"github.com/go-chi/jwtauth/v5"
+	"github.com/go-chi/jwtauth/v5"
 )
 
 type Server struct {
@@ -15,62 +16,79 @@ type Server struct {
 	bunny    BunnyClient
 }
 
+type CreateSiteRequest struct {
+	Nickname string
+}
+
 func (s Server) CreateSite(out http.ResponseWriter, req *http.Request) {
 
 	var err error
 
-	// _, claims, err := jwtauth.FromContext(req.Context())
-	// if err != nil {
-	// 	http.Error(out, fmt.Sprintf("Unable to parse claims from JWT: %v", err), http.StatusInternalServerError)
-	// 	return
-	// }
+	_, claims, err := jwtauth.FromContext(req.Context())
+	if err != nil {
+		log.Printf("[ERROR] Unable to parse claims from JWT: %v", err)
+		http.Error(out, "Unable to parse claims from JWT", http.StatusUnauthorized)
+		return
+	}
 
-	// userIdUntyped, found := claims["user_id"]
-	// if !found {
-	// 	http.Error(out, fmt.Sprintf("No 'user_id' field found in JWT claims"), http.StatusInternalServerError)
-	// 	return
-	// }
+	userIdUntyped, found := claims["user_id"]
+	if !found {
+		log.Printf("[ERROR] No 'user_id' field found in JWT claims: %v", claims)
+		http.Error(out, "Unable to parse claims from JWT", http.StatusUnauthorized)
+		return
+	}
 
-	// userId, ok := userIdUntyped.(string)
-	// if !ok {
-	// 	http.Error(out, "Claims 'user_id' could not be parsed as string", http.StatusInternalServerError)
-	// 	return
-	// }
+	userId, ok := userIdUntyped.(string)
+	if !ok {
+		log.Printf("[ERROR] Claims 'user_id' could not be parsed as string")
+		http.Error(out, "Unable to parse claims from JWT", http.StatusUnauthorized)
+		return
+	}
 
 	// no need to validate here, impossible to get this far if JWT is invalid
 	jwt := req.Header.Get("Authorization")
 
+	// get the nickname
+	var body CreateSiteRequest
+
+  err = json.NewDecoder(req.Body).Decode(&body)
+  if err != nil {
+		log.Printf("[ERROR] Request body did not parse as expected: %w, body %v", err, req.Body)
+		http.Error(out, "Malformed input, just send JSON with a nickname field", http.StatusBadRequest)
+		return
+  }
+
 	// needed by pretty much all the below functions, so let's gen it here
 	siteId := fmt.Sprintf("%v-%v-%v", util.RandomString(3), util.RandomString(3), util.RandomString(3))
-	log.Printf("Creating a new site with generated ID %v...", siteId)
+	log.Printf("[INFO] Creating a new site with generated ID %v...", siteId)
 
-	storage, err := s.bunny.CreateStorageZone(req.Context(), siteId)
-	if err != nil {
-		http.Error(out, fmt.Sprintf("Unable to create new storage zone: %v", err), http.StatusInternalServerError)
+	storage := s.bunny.CreateStorageZone(req.Context(), siteId)
+	if storage != nil {
+		http.Error(out, "Unable to create new storage zone", http.StatusInternalServerError)
 		return
 	}
 
-	hostname, err := s.bunny.CreatePullZone(req.Context(), siteId, storage)
-	if err != nil {
-		http.Error(out, fmt.Sprintf("Unable to create new pull zone: %v", err), http.StatusInternalServerError)
+	hostname := s.bunny.CreatePullZone(req.Context(), siteId, storage)
+	if hostname == "" {
+		http.Error(out, "Unable to create new pull zone", http.StatusInternalServerError)
 		return
 	}
 
-	err = s.supabase.CreateSiteRow(req.Context(), jwt, "userId", siteId, "nickname", storage)
-	if err != nil {
-		http.Error(out, fmt.Sprintf("Unable to create new SITE row in supabase: %v", err), http.StatusInternalServerError)
+	worked := s.supabase.CreateSiteRow(req.Context(), jwt, userId, siteId, body.Nickname, storage)
+	if !worked {
+		http.Error(out, "Unable to create new SITE row", http.StatusInternalServerError)
 		return
 	}
 
-	err = s.supabase.CreateAliasRow(req.Context(), jwt, "userId", siteId, hostname)
-	if err != nil {
-		http.Error(out, fmt.Sprintf("Unable to create new ALIAS row in supabase: %v", err), http.StatusInternalServerError)
+	worked = s.supabase.CreateAliasRow(req.Context(), jwt, userId, siteId, hostname)
+	if !worked {
+		http.Error(out, "Unable to create new ALIAS row", http.StatusInternalServerError)
 		return
 	}
 
-	err = s.supabase.AuthorizeHostname(req.Context(), jwt, "userId", hostname)
-	if err != nil {
-		http.Error(out, fmt.Sprintf("Unable to authorize user for new hostname: %v", err), http.StatusInternalServerError)
+	worked = s.supabase.AuthorizeHostname(req.Context(), userId, hostname)
+	if !worked {
+		http.Error(out, "Unable to authorize user for new hostname", http.StatusInternalServerError)
 		return
 	}
 
