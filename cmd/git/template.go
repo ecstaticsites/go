@@ -1,9 +1,9 @@
 package git
 
 type HookValues struct {
-	SiteId string
-	StorageHost string
-	StorageName string
+	SiteId       string
+	StorageHost  string
+	StorageName  string
 	StorageToken string
 }
 

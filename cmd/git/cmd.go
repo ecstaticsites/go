@@ -111,9 +111,9 @@ func RenderPostReceiveHookMiddleware(next http.Handler) http.Handler {
 		log.Printf("site ID found for repo %s, storage %s", repoName, storage[0])
 
 		hookValues := HookValues{
-			SiteId: repoName,
-			StorageHost: "storage.bunnycdn.com",
-			StorageName: storage[0].Name,
+			SiteId:       repoName,
+			StorageHost:  "storage.bunnycdn.com",
+			StorageName:  storage[0].Name,
 			StorageToken: storage[0].Token,
 		}
 

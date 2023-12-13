@@ -37,10 +37,10 @@ type AuthorizeHostnameBody struct {
 func (s SupabaseClient) CreateSiteRow(ctx context.Context, jwt, userId, siteId, nickname string, storage *CreateStorageZoneResponse) bool {
 
 	body := CreateSiteRowBody{
-		Id: siteId,
-		Nickname: nickname,
-		UserId: userId,
-		StorageName: storage.Name,
+		Id:           siteId,
+		Nickname:     nickname,
+		UserId:       userId,
+		StorageName:  storage.Name,
 		StorageToken: storage.Password,
 	}
 
@@ -70,10 +70,10 @@ func (s SupabaseClient) CreateSiteRow(ctx context.Context, jwt, userId, siteId, 
 func (s SupabaseClient) CreateAliasRow(ctx context.Context, jwt, userId, siteId, hostname string) bool {
 
 	body := CreateAliasRowBody{
-		UserId: userId,
-		SiteId: siteId,
+		UserId:   userId,
+		SiteId:   siteId,
 		Hostname: hostname,
-		Default: true,
+		Default:  true,
 	}
 
 	log.Printf("[INFO] Creating new ALIAS row with request body: %+v", body)

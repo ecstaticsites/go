@@ -127,27 +127,27 @@ func (b BunnyClient) CreateStorageZone(ctx context.Context, siteId string) *Crea
 func (b BunnyClient) CreatePullZone(ctx context.Context, siteId string, storage *CreateStorageZoneResponse) string {
 
 	body := CreatePullZoneBody{
-		Name: siteId,
-		Type: 0, // Premium (SSD)
-		StorageZoneId: storage.Id,
-		OriginType: 2, // StorageZone
-  	EnableGeoZoneUS: true,
-  	EnableGeoZoneEU: true,
-  	EnableGeoZoneASIA: true,
-  	EnableGeoZoneSA: true,
-  	EnableGeoZoneAF: true,
-  	EnableLogging: true,
-  	LogFormat: 0, // plaintext
-  	LogForwardingFormat: 0, // plaintext
-  	LoggingIPAnonymizationEnabled: true,
-  	LogAnonymizationType: 0, // one-octet
-  	LogForwardingEnabled: true,
-  	LogForwardingHostname: "intake.cbnr.xyz",
-  	LogForwardingPort: 517,
-  	LogForwardingProtocol: 0, // UDP
-  	UseStaleWhileUpdating: true,
-  	UseStaleWhileOffline: true,
-  	EnableAutoSSL: true,
+		Name:                          siteId,
+		Type:                          0, // Premium (SSD)
+		StorageZoneId:                 storage.Id,
+		OriginType:                    2, // StorageZone
+		EnableGeoZoneUS:               true,
+		EnableGeoZoneEU:               true,
+		EnableGeoZoneASIA:             true,
+		EnableGeoZoneSA:               true,
+		EnableGeoZoneAF:               true,
+		EnableLogging:                 true,
+		LogFormat:                     0, // plaintext
+		LogForwardingFormat:           0, // plaintext
+		LoggingIPAnonymizationEnabled: true,
+		LogAnonymizationType:          0, // one-octet
+		LogForwardingEnabled:          true,
+		LogForwardingHostname:         "intake.cbnr.xyz",
+		LogForwardingPort:             517,
+		LogForwardingProtocol:         0, // UDP
+		UseStaleWhileUpdating:         true,
+		UseStaleWhileOffline:          true,
+		EnableAutoSSL:                 true,
 	}
 
 	log.Printf("[INFO] Creating bunny pull zone with request body: %+v", body)
@@ -171,7 +171,7 @@ func (b BunnyClient) CreatePullZone(ctx context.Context, siteId string, storage 
 		return ""
 	}
 
-	if !resp.Enabled  {
+	if !resp.Enabled {
 		log.Printf("[ERROR] Unexpected not enabled created pull zone: %v", resp.Id)
 		return ""
 	}

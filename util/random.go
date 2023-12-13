@@ -10,9 +10,9 @@ func RandomString(length int) string {
 	res := make([]rune, length)
 	alphabet := []rune("abcdefghijklmnopqrstuvwxyz")
 
-  for i := 0; i < length; i++ {
-    res[i] = alphabet[rand.Intn(26)]
-  }
+	for i := 0; i < length; i++ {
+		res[i] = alphabet[rand.Intn(26)]
+	}
 
-  return string(res)
+	return string(res)
 }

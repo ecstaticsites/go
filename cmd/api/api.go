@@ -51,12 +51,12 @@ func (s Server) CreateSite(out http.ResponseWriter, req *http.Request) {
 	// get the nickname
 	var body CreateSiteRequest
 
-  err = json.NewDecoder(req.Body).Decode(&body)
-  if err != nil {
+	err = json.NewDecoder(req.Body).Decode(&body)
+	if err != nil {
 		log.Printf("[ERROR] Request body did not parse as expected: %w, body %v", err, req.Body)
 		http.Error(out, "Malformed input, just send JSON with a nickname field", http.StatusBadRequest)
 		return
-  }
+	}
 
 	// needed by pretty much all the below functions, so let's gen it here
 	siteId := fmt.Sprintf("%v-%v-%v", util.RandomString(3), util.RandomString(3), util.RandomString(3))
