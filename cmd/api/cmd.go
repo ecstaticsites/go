@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"math/rand"
 	"net/http"
 	"os"
 	"os/signal"
@@ -26,6 +27,9 @@ var ApiCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 
 		log.Printf("STARTING")
+
+		// make sure random has some nice randomness in it for later
+		rand.Seed(time.Now().UnixNano())
 
 		// set up channel to handle graceful shutdown
 		done := make(chan os.Signal, 1)
@@ -70,14 +74,19 @@ var ApiCmd = &cobra.Command{
 		r.Use(middleware.Recoverer)
 		r.Use(middleware.Logger)
 		r.Use(middleware.AllowContentType("application/json"))
-		r.Use(middleware.Timeout(time.Second))
+		r.Use(middleware.Timeout(10 * time.Second))
 		r.Use(cors.Handler(corsOptions))
 		r.Use(jwtauth.Verifier(jwtSecret))
 		r.Use(util.CheckJwtMiddleware(permissive, false))
 
-		s := Server{SupabaseClient{"a"}, BunnyClient{}}
+		bun := BunnyClient{
+			BunnyUrl: "https://api.bunny.net",
+			BunnyAccessKey: "aaaaa",
+		}
 
-		r.Get("/new", s.CreateSite)
+		s := Server{SupabaseClient{"a"}, bun}
+
+		r.Post("/new", s.CreateSite)
 
 		log.Printf("MIDDLEWARES SET UP, WILL LISTEN ON %v...", httpPort)
 
