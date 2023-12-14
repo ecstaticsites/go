@@ -22,7 +22,7 @@ import (
 
 var GitCmd = &cobra.Command{
 	Use:   "git",
-	Short: "git - handles administrative tasks regarding bunny and supabase",
+	Short: "git - pretends to be a git server, then uploads files to CDN",
 	Run: func(cmd *cobra.Command, args []string) {
 
 		log.Printf("[INFO] Starting up...")
