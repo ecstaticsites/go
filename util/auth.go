@@ -125,41 +125,13 @@ func CheckHostnameMiddleware(permissive bool) func(next http.Handler) http.Handl
 					return
 				}
 
-				metadata, found1 := claims["app_metadata"]
-				if !found1 {
-					http.Error(out, "No 'app_metadata' found in JWT claims", http.StatusInternalServerError)
+				existingHostnames, err := GetHostnamesFromClaims(claims)
+				if err != nil {
+					http.Error(out, fmt.Sprintf("Unable to get hostnames from JWT claims: %v", err), http.StatusBadRequest)
 					return
 				}
 
-				metadataMap, ok1 := metadata.(map[string]interface{})
-				if !ok1 {
-					http.Error(out, "Claims 'app_metadata' could not be parsed as map", http.StatusInternalServerError)
-					return
-				}
-
-				hostnames, found2 := metadataMap["hostnames"]
-				if !found2 {
-					http.Error(out, "No 'hostnames' field in JWT claims 'app_metadata'", http.StatusInternalServerError)
-					return
-				}
-
-				hostnamesArray, ok2 := hostnames.([]interface{})
-				if !ok2 {
-					http.Error(out, "Metadata 'hostnames' field could not be parsed as array", http.StatusInternalServerError)
-					return
-				}
-
-				hostnamesStringArray := []string{}
-				for _, name := range hostnamesArray {
-					nameString, ok3 := name.(string)
-					if !ok3 {
-						http.Error(out, "Item in metadata 'hostnames' array could not be parsed as string", http.StatusInternalServerError)
-						return
-					}
-					hostnamesStringArray = append(hostnamesStringArray, nameString)
-				}
-
-				if !slices.Contains(hostnamesStringArray, hostname) {
+				if !slices.Contains(existingHostnames, hostname) {
 					http.Error(out, fmt.Sprintf("User not authorized to query hostname %v", hostname), http.StatusUnauthorized)
 					return
 				}

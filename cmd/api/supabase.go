@@ -102,12 +102,14 @@ func (s SupabaseClient) CreateAliasRow(ctx context.Context, jwt, userId, siteId,
 	return true
 }
 
-func (s SupabaseClient) AuthorizeHostname(ctx context.Context, userId, hostname string) bool {
+func (s SupabaseClient) AuthorizeHostname(ctx context.Context, userId, newHostname string, existingHostnames []string) bool {
 
-	// this is not overwriting the
+	// mutating in place because Go makes anything else annoyingly difficult
+	existingHostnames = append(existingHostnames, newHostname)
+
 	body := AuthorizeHostnameBody{
 		AppMetadata: map[string][]string{
-			"hostnames": {hostname},
+			"hostnames": existingHostnames,
 		},
 	}
 
@@ -131,7 +133,7 @@ func (s SupabaseClient) AuthorizeHostname(ctx context.Context, userId, hostname 
 		return false
 	}
 
-	log.Printf("[INFO] Successfully authorized user %v for hostname %v", userId, hostname)
+	log.Printf("[INFO] Successfully authorized user %v for hostname %v", userId, newHostname)
 
 	return true
 }

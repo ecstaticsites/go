@@ -46,6 +46,14 @@ func (s Server) CreateSite(out http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// get the currently-authorized hostnames from the claims for appending later
+	existingHostnames, err := util.GetHostnamesFromClaims(claims)
+	if err != nil {
+		log.Printf("[ERROR] Unable to get hostnames from JWT claims: %v", err)
+		http.Error(out, "Invalid JWT app metadata", http.StatusUnauthorized)
+		return
+	}
+
 	// no need to validate here, impossible to get this far if JWT is invalid
 	jwt := req.Header.Get("Authorization")
 
@@ -69,8 +77,8 @@ func (s Server) CreateSite(out http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	hostname := s.bunny.CreatePullZone(req.Context(), siteId, storage)
-	if hostname == "" {
+	newHostname := s.bunny.CreatePullZone(req.Context(), siteId, storage)
+	if newHostname == "" {
 		http.Error(out, "Unable to create new pull zone", http.StatusInternalServerError)
 		return
 	}
@@ -81,13 +89,13 @@ func (s Server) CreateSite(out http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	worked = s.supabase.CreateAliasRow(req.Context(), jwt, userId, siteId, hostname)
+	worked = s.supabase.CreateAliasRow(req.Context(), jwt, userId, siteId, newHostname)
 	if !worked {
 		http.Error(out, "Unable to create new ALIAS row", http.StatusInternalServerError)
 		return
 	}
 
-	worked = s.supabase.AuthorizeHostname(req.Context(), userId, hostname)
+	worked = s.supabase.AuthorizeHostname(req.Context(), userId, newHostname, existingHostnames)
 	if !worked {
 		http.Error(out, "Unable to authorize user for new hostname", http.StatusInternalServerError)
 		return
