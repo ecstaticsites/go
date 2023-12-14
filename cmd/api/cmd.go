@@ -26,48 +26,78 @@ var ApiCmd = &cobra.Command{
 	Short: "api - handles administrative tasks regarding bunny and supabase",
 	Run: func(cmd *cobra.Command, args []string) {
 
-		log.Printf("STARTING")
+		log.Printf("[INFO] Starting up...")
 
-		// make sure random has some nice randomness in it for later
+		// ------------------------------------------------------------------------
+
+		log.Printf("[INFO] Seeding randomness for generating IDs...")
+
 		rand.Seed(time.Now().UnixNano())
 
-		// set up channel to handle graceful shutdown
+		// ------------------------------------------------------------------------
+
+		log.Printf("[INFO] Registering int handlers for graceful shutdown...")
+
 		done := make(chan os.Signal, 1)
 		signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
-		httpPort, err := util.GetEnvConfig("HTTP_LISTENER_PORT")
-		if err != nil {
-			log.Fatalf("Unable to get http listener port from environment: %v", err)
+		// ------------------------------------------------------------------------
+
+		log.Printf("[INFO] Getting configs from environment...")
+
+		configNames := []string{
+			"HTTP_LISTENER_PORT",
+			"CORS_ALLOWED_ORIGIN",
+			"PERMISSIVE_MODE",
+			"JWT_SECRET",
+			"SUPABASE_URL",
+			"SUPABASE_ANON_KEY",
+			"SUPABASE_SERVICE_KEY",
+			"BUNNY_URL",
+			"BUNNY_API_KEY",
 		}
 
-		corsOrigin, err := util.GetEnvConfig("CORS_ALLOWED_ORIGIN")
+		config, err := util.GetEnvConfigs(configNames)
 		if err != nil {
-			log.Fatalf("Unable to get CORS allowed origin from environment: %v", err)
+			log.Fatalf("[ERROR] Could not parse configs from environment: %v", err)
 		}
+
+		// ------------------------------------------------------------------------
+
+		log.Printf("[INFO] Setting up middlewares...")
 
 		corsOptions := cors.Options{
-			AllowedOrigins:   []string{corsOrigin},
+			AllowedOrigins:   []string{config["CORS_ALLOWED_ORIGIN"]},
 			AllowedMethods:   []string{"GET", "OPTIONS"},
 			AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
 			AllowCredentials: true,
 		}
 
-		permissiveStr, err := util.GetEnvConfig("PERMISSIVE_MODE")
-		if err != nil {
-			log.Fatalf("Unable to get permissive mode status from environment: %v", err)
-		}
-
-		permissive := permissiveStr == "true"
-
-		jwtSecretStr, err := util.GetEnvConfig("JWT_SECRET")
-		if err != nil {
-			log.Fatalf("Unable to get JWT secret token from environment: %v", err)
-		}
-
-		// as soon as supabase supports RS256 / asymmetric JWT encryption, get this
-		// out of here and replace with the public key just for validation
+		// as soon as supabase supports RS256 / asymmetric JWT encryption, get
+		// this out of here and replace with the public key just for validation
 		// https://github.com/orgs/supabase/discussions/4059
-		jwtSecret := jwtauth.New("HS256", []byte(jwtSecretStr), nil)
+		jwtSecret := jwtauth.New("HS256", []byte(config["JWT_SECRET"]), nil)
+
+		// ------------------------------------------------------------------------
+
+		log.Printf("[INFO] Setting up bunny and supabase clients...")
+
+		sup := SupabaseClient{
+			SupabaseUrl:        config["SUPABASE_URL"],
+			SupabaseAnonKey:    config["SUPABASE_ANON_KEY"],
+			SupabaseServiceKey: config["SUPABASE_SERVICE_KEY"],
+		}
+
+		bun := BunnyClient{
+			BunnyUrl:       config["BUNNY_URL"],
+			BunnyAccessKey: config["BUNNY_API_KEY"],
+		}
+
+		s := Server{sup, bun}
+
+		// ------------------------------------------------------------------------
+
+		log.Printf("[INFO] Registering middlewares and handlers...")
 
 		r := chi.NewRouter()
 
@@ -77,43 +107,43 @@ var ApiCmd = &cobra.Command{
 		r.Use(middleware.Timeout(10 * time.Second))
 		r.Use(cors.Handler(corsOptions))
 		r.Use(jwtauth.Verifier(jwtSecret))
-		r.Use(util.CheckJwtMiddleware(permissive, false))
-
-		sup := SupabaseClient{
-			SupabaseUrl:        "https://ewwccbgjnulfgcvfrsvj.supabase.co",
-			SupabaseAdminToken: "aaaa",
-		}
-
-		bun := BunnyClient{
-			BunnyUrl: "https://api.bunny.net",
-			BunnyAccessKey: "aaaa",
-		}
-
-		s := Server{sup, bun}
+		r.Use(util.CheckJwtMiddleware((config["PERMISSIVE_MODE"] == "true"), false))
 
 		r.Post("/new", s.CreateSite)
 
-		log.Printf("MIDDLEWARES SET UP, WILL LISTEN ON %v...", httpPort)
+		// ------------------------------------------------------------------------
 
-		server := http.Server{Addr: fmt.Sprintf(":%v", httpPort), Handler: r}
-		go server.ListenAndServe()
+		log.Printf("[INFO] Trying to listen %v...", config["HTTP_LISTENER_PORT"])
 
-		log.Printf("HTTP SERVER STARTED IN GOROUTINE, waiting to die...")
+		primary := http.Server{
+			Addr:    fmt.Sprintf(":%v", config["HTTP_LISTENER_PORT"]),
+			Handler: r,
+		}
 
-		// block here until we get some sort of interrupt or kill
+		go func() {
+			err := primary.ListenAndServe()
+			if err != nil {
+				log.Fatalf("[ERROR] Primary server could not start: %v", err)
+			}
+		}()
+
+		// ------------------------------------------------------------------------
+
+		log.Printf("[INFO] Listening! Main thread now waiting for interrupt...")
+
 		<-done
 
-		log.Printf("GOT SIGNAL TO DIE, cleaning up...")
+		log.Printf("[INFO] Got signal to die, cleaning up...")
 
 		ctx := context.Background()
 		ctxTimeout, cancel := context.WithTimeout(ctx, time.Second*5)
 		defer cancel()
 
-		err = server.Shutdown(ctxTimeout)
+		err = primary.Shutdown(ctxTimeout)
 		if err != nil {
-			log.Fatalf("Could not cleanly shut down http server: %v", err)
+			log.Fatalf("[ERROR] Could not cleanly shut down primary server: %v", err)
 		}
 
-		log.Printf("ALL DONE, GOODBYE")
+		log.Printf("[INFO] ALL DONE, GOODBYE")
 	},
 }

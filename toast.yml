@@ -87,12 +87,15 @@ tasks:
     dependencies:
     - build
     environment:
-      # need to skip JWT validation in dev
-      PERMISSIVE_MODE: "true"
       HTTP_LISTENER_PORT: "8090"
-      # would love to use wildcard here, but disallowed with credentials
-      CORS_ALLOWED_ORIGIN: "http://127.0.0.1:5173"
+      CORS_ALLOWED_ORIGIN: "http://127.0.0.1:8090"
+      PERMISSIVE_MODE: "true"
       JWT_SECRET: "supersecretplaceholder"
+      SUPABASE_URL: "aaa.supabase.co"
+      SUPABASE_ANON_KEY: "supersecretplaceholder"
+      SUPABASE_SERVICE_KEY: "supersecretplaceholder"
+      BUNNY_URL: "bbb.bunny.net"
+      BUNNY_API_KEY: "supersecretplaceholder"
     ports:
     - 8090:8090
     command: |
@@ -102,10 +105,10 @@ tasks:
     dependencies:
     - build
     environment:
-      # need to skip JWT validation in dev
-      PERMISSIVE_MODE: "true"
       HTTP_LISTENER_PORT: "8090"
-      JWT_SECRET: "supersecretplaceholder"
+      PERMISSIVE_MODE: "true"
+      SUPABASE_URL: "aaa.supabase.co"
+      SUPABASE_ANON_KEY: "supersecretplaceholder"
     ports:
     - 8090:8090
     command: |

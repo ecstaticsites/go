@@ -10,7 +10,8 @@ import (
 
 type SupabaseClient struct {
 	SupabaseUrl        string
-	SupabaseAdminToken string
+	SupabaseAnonKey    string
+	SupabaseServiceKey string
 }
 
 // rows also include 2 fields (created, updated) which we let the DB populate for us
@@ -51,7 +52,7 @@ func (s SupabaseClient) CreateSiteRow(ctx context.Context, jwt, userId, siteId, 
 	err := requests.
 		URL(s.SupabaseUrl).
 		Path("/rest/v1/site").
-		Header("apikey", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV3d2NjYmdqbnVsZmdjdmZyc3ZqIiwicm9sZSI6ImFub24iLCJpYXQiOjE2OTM1ODE2ODUsImV4cCI6MjAwOTE1NzY4NX0.gI3YdNSC5GMkda2D2QPRMvnBdaMOS2ynfFKxis5-WKs").
+		Header("apikey", s.SupabaseAnonKey).
 		Header("Authorization", jwt).
 		ContentType("application/json").
 		BodyJSON(&body).
@@ -84,7 +85,7 @@ func (s SupabaseClient) CreateAliasRow(ctx context.Context, jwt, userId, siteId,
 	err := requests.
 		URL(s.SupabaseUrl).
 		Path("/rest/v1/alias").
-		Header("apikey", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV3d2NjYmdqbnVsZmdjdmZyc3ZqIiwicm9sZSI6ImFub24iLCJpYXQiOjE2OTM1ODE2ODUsImV4cCI6MjAwOTE1NzY4NX0.gI3YdNSC5GMkda2D2QPRMvnBdaMOS2ynfFKxis5-WKs").
+		Header("apikey", s.SupabaseAnonKey).
 		Header("Authorization", jwt).
 		ContentType("application/json").
 		BodyJSON(&body).
@@ -117,8 +118,8 @@ func (s SupabaseClient) AuthorizeHostname(ctx context.Context, userId, hostname 
 	err := requests.
 		URL(s.SupabaseUrl).
 		Pathf("/auth/v1/admin/users/%s", userId).
-		Header("apikey", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV3d2NjYmdqbnVsZmdjdmZyc3ZqIiwicm9sZSI6ImFub24iLCJpYXQiOjE2OTM1ODE2ODUsImV4cCI6MjAwOTE1NzY4NX0.gI3YdNSC5GMkda2D2QPRMvnBdaMOS2ynfFKxis5-WKs").
-		Header("Authorization", fmt.Sprintf("Bearer %v", s.SupabaseAdminToken)).
+		Header("apikey", s.SupabaseAnonKey).
+		Header("Authorization", fmt.Sprintf("Bearer %v", s.SupabaseServiceKey)).
 		ContentType("application/json").
 		BodyJSON(&body).
 		ErrorJSON(&errorJson).
