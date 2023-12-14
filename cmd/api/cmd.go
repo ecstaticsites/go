@@ -80,13 +80,13 @@ var ApiCmd = &cobra.Command{
 		r.Use(util.CheckJwtMiddleware(permissive, false))
 
 		sup := SupabaseClient{
-			SupabaseUrl:        "",
-			SupabaseAdminToken: "",
+			SupabaseUrl:        "https://ewwccbgjnulfgcvfrsvj.supabase.co",
+			SupabaseAdminToken: "aaaa",
 		}
 
 		bun := BunnyClient{
-			BunnyUrl:       "https://api.bunny.net",
-			BunnyAccessKey: "aaaaa",
+			BunnyUrl: "https://api.bunny.net",
+			BunnyAccessKey: "aaaa",
 		}
 
 		s := Server{sup, bun}

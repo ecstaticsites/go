@@ -31,7 +31,8 @@ func (s Server) CreateSite(out http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	userIdUntyped, found := claims["user_id"]
+	// what is "sub"? If nothing else, seems to be the JWT's slang for user ID
+	userIdUntyped, found := claims["sub"]
 	if !found {
 		log.Printf("[ERROR] No 'user_id' field found in JWT claims: %v", claims)
 		http.Error(out, "Unable to parse claims from JWT", http.StatusUnauthorized)
@@ -53,7 +54,7 @@ func (s Server) CreateSite(out http.ResponseWriter, req *http.Request) {
 
 	err = json.NewDecoder(req.Body).Decode(&body)
 	if err != nil {
-		log.Printf("[ERROR] Request body did not parse as expected: %w, body %v", err, req.Body)
+		log.Printf("[ERROR] Request body did not parse as expected: %v, body %v", err, req.Body)
 		http.Error(out, "Malformed input, just send JSON with a nickname field", http.StatusBadRequest)
 		return
 	}
@@ -63,7 +64,7 @@ func (s Server) CreateSite(out http.ResponseWriter, req *http.Request) {
 	log.Printf("[INFO] Creating a new site with generated ID %v...", siteId)
 
 	storage := s.bunny.CreateStorageZone(req.Context(), siteId)
-	if storage != nil {
+	if storage == nil {
 		http.Error(out, "Unable to create new storage zone", http.StatusInternalServerError)
 		return
 	}

@@ -101,7 +101,7 @@ func (b BunnyClient) CreateStorageZone(ctx context.Context, siteId string) *Crea
 		Fetch(ctx)
 
 	if err != nil {
-		log.Printf("[ERROR] Unable to create storage zone in BunnyCDN: %w, response: %+v", err, errorJson)
+		log.Printf("[ERROR] Unable to create storage zone in BunnyCDN: %v, response: %+v", err, errorJson)
 		return nil
 	}
 
@@ -167,7 +167,7 @@ func (b BunnyClient) CreatePullZone(ctx context.Context, siteId string, storage 
 		Fetch(ctx)
 
 	if err != nil {
-		log.Printf("[ERROR] Unable to create pull zone in BunnyCDN: %w, response: %+v", err, errorJson)
+		log.Printf("[ERROR] Unable to create pull zone in BunnyCDN: %v, response: %+v", err, errorJson)
 		return ""
 	}
 
