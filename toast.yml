@@ -107,6 +107,7 @@ tasks:
     environment:
       HTTP_LISTENER_PORT: "8090"
       PERMISSIVE_MODE: "true"
+      JWT_SECRET: "supersecretplaceholder"
       SUPABASE_URL: "aaa.supabase.co"
       SUPABASE_ANON_KEY: "supersecretplaceholder"
     ports:
