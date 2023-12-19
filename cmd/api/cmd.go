@@ -67,7 +67,7 @@ var ApiCmd = &cobra.Command{
 
 		corsOptions := cors.Options{
 			AllowedOrigins:   []string{config["CORS_ALLOWED_ORIGIN"]},
-			AllowedMethods:   []string{"GET", "OPTIONS"},
+			AllowedMethods:   []string{"POST", "OPTIONS"},
 			AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
 			AllowCredentials: true,
 		}

@@ -20,6 +20,10 @@ type CreateSiteRequest struct {
 	Nickname string
 }
 
+type CreateSiteResponse struct {
+	Id string `json:"id"`
+}
+
 func (s Server) CreateSite(out http.ResponseWriter, req *http.Request) {
 
 	var err error
@@ -100,6 +104,21 @@ func (s Server) CreateSite(out http.ResponseWriter, req *http.Request) {
 		http.Error(out, "Unable to authorize user for new hostname", http.StatusInternalServerError)
 		return
 	}
+
+	log.Printf("[INFO] All good, site %v created, writing response body...", siteId)
+
+	resp := CreateSiteResponse{
+		Id: siteId,
+	}
+
+	// TODO, can/should probably use go-chi render for all this?
+  out.Header().Set("Content-Type", "application/json")
+
+  err = json.NewEncoder(out).Encode(resp)
+  if err != nil {
+		http.Error(out, "Unable to render output, SITE WAS STILL CREATED", http.StatusInternalServerError)
+		return
+  }
 
 	return
 }
