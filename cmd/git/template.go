@@ -2,7 +2,9 @@ package git
 
 type HookValues struct {
 	SiteId       string
+	SiteSubDir   string
 	StorageHost  string
+	StoragePort  string
 	StorageName  string
 	StorageToken string
 }
@@ -10,23 +12,26 @@ type HookValues struct {
 var HookTemplate = `#!/bin/bash
 set -euo pipefail
 
-echo "hi"
+echo "hi..."
 
-echo "you just pushed to {{.SiteId}}..."
+echo "you just pushed to {{.SiteId}}, setting up git-ftp..."
 
-echo "deleting current content"
+git config git-ftp.url "ftp://{{.StorageHost}}:{{.StoragePort}}/"
+git config git-ftp.user "{{.StorageName}}"
+git config git-ftp.password "{{.StorageToken}}"
+git config git-ftp.syncroot "{{.SiteSubDir}}"
 
-curl -X "DELETE" -H "AccessKey: {{.StorageToken}}" "https://{{.StorageHost}}/{{.StorageName}}/"
-
-echo "listing files..."
+echo "checking out main branch..."
 
 git checkout main
 
-for FILENAME in $(git ls-files);
-do
-	echo "Uploading $FILENAME of size $(stat --printf='%s' $FILENAME) bytes..."
-	sshpass -p {{.StorageToken}} sftp -q -o StrictHostKeyChecking=no {{.StorageName}}@{{.StorageHost}} <<< $"@put ${FILENAME}"
-done
+echo "uploading files to CDN..."
+
+git ftp push --auto-init
+
+echo "pushed, now deleting local files..."
+
+rm -rf /tmp/{{.SiteId}}
 
 echo "all uploaded goodbye"
 `

@@ -106,7 +106,10 @@ func (m Middlewarer) CreateGitHookMiddleware() func(http.Handler) http.Handler {
 
 			hookValues := HookValues{
 				SiteId:       repoName,
+				// TODO, this needs to actually live in the database record + be configurable by user!
+				SiteSubDir:   "site",
 				StorageHost:  "storage.bunnycdn.com",
+				StoragePort:  "21",
 				StorageName:  storage[0].Name,
 				StorageToken: storage[0].Token,
 			}

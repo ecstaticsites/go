@@ -2,10 +2,10 @@ image: golang:1.21
 command_prefix: set -euxo pipefail
 location: /scratch
 tasks:
-  sshpass:
+  gitftp:
     command: |
       apt-get update
-      apt-get install -y sshpass
+      apt-get install -y git-ftp
   deps:
     input_paths:
     - go.mod
@@ -16,7 +16,7 @@ tasks:
     # I would like to cache this but go-build files prevent it
     cache: false
     dependencies:
-    - sshpass
+    - gitftp
     - deps
     environment:
       GOCACHE: /scratch/go-build
@@ -106,12 +106,13 @@ tasks:
     dependencies:
     - build
     environment:
-      HTTP_LISTENER_PORT: "8090"
       PERMISSIVE_MODE: "true"
+      HTTP_LISTENER_PORT: "8080"
+      METRICS_LISTENER_PORT: "8081"
       JWT_SECRET: "supersecretplaceholder"
       SUPABASE_URL: "aaa.supabase.co"
       SUPABASE_ANON_KEY: "supersecretplaceholder"
     ports:
-    - 8090:8090
+    - 8080:8080
     command: |
       out/cbnr git
