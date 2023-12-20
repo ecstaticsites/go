@@ -111,7 +111,7 @@ func (i InfluxClient) BuildInfluxQuery(hostname, includeBots, groupby, bucketby,
 	query.WriteString(fmt.Sprintf("from \"%s\"", hostname))
 
 	query.WriteString(" ")
-	query.WriteString(fmt.Sprintf("where filetype = 'page'"))
+	query.WriteString(fmt.Sprintf("where filetype = 'Page'"))
 
 	// if includeBots is true, then we want everything -- so no filter
 	// todo -- isprobablybot is a string ?? should fix that
