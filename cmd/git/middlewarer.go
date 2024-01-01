@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path"
 	"strings"
 	"text/template"
 
@@ -17,9 +18,9 @@ type Middlewarer struct {
 	SupabaseAnonKey string
 }
 
-type Storage struct {
-	Name  string `json:"storage_name"`
-	Token string `json:"storage_token"`
+type SiteConfig struct {
+	IndexPath    string `json:"index_path"`
+	StorageToken string `json:"storage_token"`
 }
 
 func (m Middlewarer) CreateGitInitMiddleware() func(http.Handler) http.Handler {
@@ -75,16 +76,16 @@ func (m Middlewarer) CreateGitHookMiddleware() func(http.Handler) http.Handler {
 
 			repoName := strings.Split(req.URL.Path, "/")[1]
 
-			var storage []Storage
+			var config []SiteConfig
 
 			err := requests.
 				URL(m.SupabaseUrl).
 				Path("/rest/v1/site").
-				Param("select", "storage_name,storage_token").
+				Param("select", "index_path,storage_token").
 				Param("id", fmt.Sprintf("eq.%s", repoName)).
 				Header("apikey", m.SupabaseAnonKey).
 				Header("Authorization", token).
-				ToJSON(&storage).
+				ToJSON(&config).
 				Fetch(req.Context())
 
 			if err != nil {
@@ -92,26 +93,26 @@ func (m Middlewarer) CreateGitHookMiddleware() func(http.Handler) http.Handler {
 				return
 			}
 
-			if len(storage) == 0 {
+			if len(config) == 0 {
 				http.Error(out, fmt.Sprintf("No result rows from supabase for site ID %v (possibly RLS unauthorized?)", repoName), http.StatusUnauthorized)
 				return
 			}
 
-			if len(storage) > 1 {
-				http.Error(out, fmt.Sprintf("Too many rows from supabase, what do I do: %v", storage), http.StatusInternalServerError)
+			if len(config) > 1 {
+				http.Error(out, fmt.Sprintf("Too many rows from supabase, what do I do: %v", config), http.StatusInternalServerError)
 				return
 			}
 
-			log.Printf("site ID found for repo %s, storage %s", repoName, storage[0])
+			log.Printf("site ID found for repo %s, config %s", repoName, config[0])
 
 			hookValues := HookValues{
 				SiteId:       repoName,
-				// TODO, this needs to actually live in the database record + be configurable by user!
-				SiteSubDir:   "site",
+				SiteSubDir:   path.Dir(config[0].IndexPath),
 				StorageHost:  "storage.bunnycdn.com",
 				StoragePort:  "21",
-				StorageName:  storage[0].Name,
-				StorageToken: storage[0].Token,
+				// we work hard so that storage name == pull zone name == site ID
+				StorageName:  repoName,
+				StorageToken: config[0].StorageToken,
 			}
 
 			hookPath := fmt.Sprintf("/tmp/%s/.git/hooks/post-receive", repoName)

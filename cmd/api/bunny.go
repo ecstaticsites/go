@@ -133,7 +133,7 @@ func (b BunnyClient) CreateStorageZone(ctx context.Context, siteId string) *Crea
 	return &resp
 }
 
-func (b BunnyClient) CreatePullZone(ctx context.Context, siteId string, storage *CreateStorageZoneResponse) string {
+func (b BunnyClient) CreatePullZone(ctx context.Context, siteId string, storage *CreateStorageZoneResponse) *CreatePullZoneResponse {
 
 	body := CreatePullZoneBody{
 		Name:                          siteId,
@@ -177,26 +177,26 @@ func (b BunnyClient) CreatePullZone(ctx context.Context, siteId string, storage 
 
 	if err != nil {
 		log.Printf("[ERROR] Unable to create pull zone in BunnyCDN: %v, response: %+v", err, errorJson)
-		return ""
+		return nil
 	}
 
 	if !resp.Enabled {
 		log.Printf("[ERROR] Unexpected not enabled created pull zone: %v", resp.Id)
-		return ""
+		return nil
 	}
 
 	if len(resp.Hostnames) != 1 {
 		log.Printf("[ERROR] Incorrect # of hostnames for new pull zone (expected 1): %v", resp.Hostnames)
-		return ""
+		return nil
 	}
 
 	if !resp.Hostnames[0].IsSystemHostname {
 		log.Printf("[ERROR] Unexpected not system hostname for new pull zone: %v", resp.Hostnames[0].Id)
-		return ""
+		return nil
 	}
 
 	log.Printf("[INFO] Bunny pull zone with ID %v successfully created", siteId)
-	return resp.Hostnames[0].Value
+	return &resp
 }
 
 func (b BunnyClient) AddCustomHostname(ctx context.Context, zoneId int, hostname string) bool {

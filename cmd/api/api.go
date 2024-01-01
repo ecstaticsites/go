@@ -87,25 +87,19 @@ func (s Server) CreateSite(out http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	newHostname := s.bunny.CreatePullZone(req.Context(), siteId, storage)
-	if newHostname == "" {
+	pull := s.bunny.CreatePullZone(req.Context(), siteId, storage)
+	if pull == nil {
 		http.Error(out, "Unable to create new pull zone", http.StatusInternalServerError)
 		return
 	}
 
-	worked := s.supabase.CreateSiteRow(req.Context(), jwt, userId, siteId, body.Nickname, storage)
+	worked := s.supabase.CreateSiteRow(req.Context(), jwt, userId, siteId, body.Nickname, storage, pull)
 	if !worked {
 		http.Error(out, "Unable to create new SITE row", http.StatusInternalServerError)
 		return
 	}
 
-	worked = s.supabase.CreateAliasRow(req.Context(), jwt, userId, siteId, newHostname)
-	if !worked {
-		http.Error(out, "Unable to create new ALIAS row", http.StatusInternalServerError)
-		return
-	}
-
-	worked = s.supabase.AuthorizeHostname(req.Context(), userId, newHostname, existingHostnames)
+	worked = s.supabase.AuthorizeHostname(req.Context(), userId, pull.Hostnames[0].Value, existingHostnames)
 	if !worked {
 		http.Error(out, "Unable to authorize user for new hostname", http.StatusInternalServerError)
 		return

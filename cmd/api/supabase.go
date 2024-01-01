@@ -14,21 +14,14 @@ type SupabaseClient struct {
 	SupabaseServiceKey string
 }
 
-// rows also include 2 fields (created, updated) which we let the DB populate for us
+// rows also include fields (created, index path, etc) which we let the DB populate for us
 type CreateSiteRowBody struct {
 	Id           string `json:"id"`
+	CreatorId    string `json:"creator_id"`
 	Nickname     string `json:"nickname"`
-	UserId       string `json:"creator_id"`
-	StorageName  string `json:"storage_name"`
 	StorageToken string `json:"storage_token"`
-}
-
-// rows also include 2 fields (id, created) which we let the DB populate for us
-type CreateAliasRowBody struct {
-	UserId   string `json:"creator_id"`
-	SiteId   string `json:"site_id"`
-	Hostname string `json:"hostname"`
-	Default  bool   `json:"is_default"`
+	PullZoneId   int64  `json:"pull_zone_id"`
+	Hostname     string `json:"hostname"`
 }
 
 type AddHostnameToSiteRowBody struct {
@@ -39,14 +32,15 @@ type AuthorizeHostnameBody struct {
 	AppMetadata map[string][]string `json:"app_metadata"`
 }
 
-func (s SupabaseClient) CreateSiteRow(ctx context.Context, jwt, userId, siteId, nickname string, storage *CreateStorageZoneResponse) bool {
+func (s SupabaseClient) CreateSiteRow(ctx context.Context, jwt, userId, siteId, nickname string, storage *CreateStorageZoneResponse, pull *CreatePullZoneResponse) bool {
 
 	body := CreateSiteRowBody{
-		Id:           siteId,
-		Nickname:     nickname,
-		UserId:       userId,
-		StorageName:  storage.Name,
+		Id: siteId,
+		CreatorId: userId,
+		Nickname: nickname,
 		StorageToken: storage.Password,
+		PullZoneId: pull.Id,
+		Hostname: pull.Hostnames[0].Value,
 	}
 
 	log.Printf("[INFO] Creating new SITE row with request body: %+v", body)
@@ -69,39 +63,6 @@ func (s SupabaseClient) CreateSiteRow(ctx context.Context, jwt, userId, siteId, 
 	}
 
 	log.Printf("[INFO] Successfully created new SITE for user %v, site %v", userId, siteId)
-
-	return true
-}
-
-func (s SupabaseClient) CreateAliasRow(ctx context.Context, jwt, userId, siteId, hostname string) bool {
-
-	body := CreateAliasRowBody{
-		UserId:   userId,
-		SiteId:   siteId,
-		Hostname: hostname,
-		Default:  true,
-	}
-
-	log.Printf("[INFO] Creating new ALIAS row with request body: %+v", body)
-
-	var errorJson map[string]interface{}
-
-	err := requests.
-		URL(s.SupabaseUrl).
-		Path("/rest/v1/alias").
-		Header("apikey", s.SupabaseAnonKey).
-		Header("Authorization", jwt).
-		ContentType("application/json").
-		BodyJSON(&body).
-		ErrorJSON(&errorJson).
-		Fetch(ctx)
-
-	if err != nil {
-		log.Printf("[ERROR] Unable to create new ALIAS row: %v, response: %+v", err, errorJson)
-		return false
-	}
-
-	log.Printf("[INFO] Successfully created new ALIAS for user %v, hostname %v", userId, hostname)
 
 	return true
 }
