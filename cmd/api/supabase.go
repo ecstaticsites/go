@@ -31,6 +31,10 @@ type CreateAliasRowBody struct {
 	Default  bool   `json:"is_default"`
 }
 
+type AddHostnameToSiteRowBody struct {
+	CustomHostname string `json:"custom_hostname"`
+}
+
 type AuthorizeHostnameBody struct {
 	AppMetadata map[string][]string `json:"app_metadata"`
 }
@@ -134,6 +138,38 @@ func (s SupabaseClient) AuthorizeHostname(ctx context.Context, userId, newHostna
 	}
 
 	log.Printf("[INFO] Successfully authorized user %v for hostname %v", userId, newHostname)
+
+	return true
+}
+
+func (s SupabaseClient) AddHostnameToSiteRow(ctx context.Context, jwt, siteId, hostname string) bool {
+
+	body := AddHostnameToSiteRowBody{
+		CustomHostname: hostname,
+	}
+
+	log.Printf("[INFO] Adding hostname to SITE row %v with request body: %+v", siteId, body)
+
+	var errorJson map[string]interface{}
+
+	err := requests.
+		URL(s.SupabaseUrl).
+		Path("/rest/v1/site").
+		Param("id", fmt.Sprintf("eq.%v", siteId)).
+		Header("apikey", s.SupabaseAnonKey).
+		Header("Authorization", jwt).
+		ContentType("application/json").
+		BodyJSON(&body).
+		ErrorJSON(&errorJson).
+		Patch().
+		Fetch(ctx)
+
+	if err != nil {
+		log.Printf("[ERROR] Unable to add hostname to SITE row %v: %v, response: %+v", siteId, err, errorJson)
+		return false
+	}
+
+	log.Printf("[INFO] Successfully added new hostname for site %v, hostname %v", siteId, hostname)
 
 	return true
 }

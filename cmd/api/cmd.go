@@ -103,12 +103,13 @@ var ApiCmd = &cobra.Command{
 		r.Use(middleware.Recoverer)
 		r.Use(middleware.Logger)
 		r.Use(middleware.AllowContentType("application/json"))
-		r.Use(middleware.Timeout(10 * time.Second))
+		r.Use(middleware.Timeout(1 * time.Minute))
 		r.Use(cors.Handler(corsOptions))
 		r.Use(jwtauth.Verifier(jwtSecret))
 		r.Use(util.CheckJwtMiddleware((config["PERMISSIVE_MODE"] == "true"), false))
 
-		r.Post("/new", s.CreateSite)
+		r.Post("/site", s.CreateSite)
+		r.Post("/hostname", s.AddHostname)
 
 		// ------------------------------------------------------------------------
 

@@ -24,6 +24,12 @@ type CreateSiteResponse struct {
 	Id string `json:"id"`
 }
 
+type AddHostnameRequest struct {
+	SiteId     string `json:"siteid"`
+	PullZoneId int    `json:"pullzoneid"`
+	Hostname   string `json:"hostname"`
+}
+
 func (s Server) CreateSite(out http.ResponseWriter, req *http.Request) {
 
 	var err error
@@ -119,6 +125,106 @@ func (s Server) CreateSite(out http.ResponseWriter, req *http.Request) {
 		http.Error(out, "Unable to render output, SITE WAS STILL CREATED", http.StatusInternalServerError)
 		return
   }
+
+	return
+}
+
+func (s Server) AddHostname(out http.ResponseWriter, req *http.Request) {
+
+	var err error
+
+	_, claims, err := jwtauth.FromContext(req.Context())
+	if err != nil {
+		log.Printf("[ERROR] Unable to parse claims from JWT: %v", err)
+		http.Error(out, "Unable to parse claims from JWT", http.StatusUnauthorized)
+		return
+	}
+
+	// what is "sub"? If nothing else, seems to be the JWT's slang for user ID
+	userIdUntyped, found := claims["sub"]
+	if !found {
+		log.Printf("[ERROR] No 'user_id' field found in JWT claims: %v", claims)
+		http.Error(out, "Unable to parse claims from JWT", http.StatusUnauthorized)
+		return
+	}
+
+	userId, ok := userIdUntyped.(string)
+	if !ok {
+		log.Printf("[ERROR] Claims 'user_id' could not be parsed as string")
+		http.Error(out, "Unable to parse claims from JWT", http.StatusUnauthorized)
+		return
+	}
+
+	// get the currently-authorized hostnames from the claims for appending later
+	existingHostnames, err := util.GetHostnamesFromClaims(claims)
+	if err != nil {
+		log.Printf("[ERROR] Unable to get hostnames from JWT claims: %v", err)
+		http.Error(out, "Invalid JWT app metadata", http.StatusUnauthorized)
+		return
+	}
+
+	// no need to validate here, impossible to get this far if JWT is invalid
+	jwt := req.Header.Get("Authorization")
+
+	var body AddHostnameRequest
+
+	err = json.NewDecoder(req.Body).Decode(&body)
+	if err != nil {
+		log.Printf("[ERROR] Request body did not parse as expected: %v, body %v", err, req.Body)
+		http.Error(out, "Malformed input, just send JSON with a nickname field", http.StatusBadRequest)
+		return
+	}
+
+	// TODO -- here needs some validation that user ID actually owns this pull zone
+	// fix -- get pull zone ID from SITE row using user's JWT. Requires column immutability
+
+	worked := s.bunny.AddCustomHostname(req.Context(), body.PullZoneId, body.Hostname)
+	if !worked {
+		http.Error(out, "Unable to add new hostname", http.StatusInternalServerError)
+		return
+	}
+
+	worked = s.bunny.SetUpFreeCertificate(req.Context(), body.Hostname)
+	if !worked {
+		// roll back the new hostname if we can't finish the job
+		worked = s.bunny.RemoveCustomHostname(req.Context(), body.PullZoneId, body.Hostname)
+		if !worked {
+			log.Printf("[ERROR] VERY SAD, could not remove %v hostname %v, manual cleanup required", body.PullZoneId, body.Hostname)
+			http.Error(out, "Unable to acquire SSL certificate, INTERMEDIATE STATE", http.StatusInternalServerError)
+			return
+		}
+		http.Error(out, "Unable to acquire SSL certificate", http.StatusInternalServerError)
+		return
+	}
+
+	worked = s.bunny.ForceSsl(req.Context(), body.PullZoneId, body.Hostname)
+	if !worked {
+		// roll back the new hostname if we can't finish the job
+		worked = s.bunny.RemoveCustomHostname(req.Context(), body.PullZoneId, body.Hostname)
+		if !worked {
+			log.Printf("[ERROR] VERY SAD, could not remove %v hostname %v, manual cleanup required", body.PullZoneId, body.Hostname)
+			http.Error(out, "Unable to set up SSL enforcement, INTERMEDIATE STATE", http.StatusInternalServerError)
+			return
+		}
+		http.Error(out, "Unable to set up SSL enforcement", http.StatusInternalServerError)
+		return
+	}
+
+	// todo -- rollback the new hostname if the below don't work, too? Agh
+
+	worked = s.supabase.AuthorizeHostname(req.Context(), userId, body.Hostname, existingHostnames)
+	if !worked {
+		http.Error(out, "Unable to authorize user for new hostname", http.StatusInternalServerError)
+		return
+	}
+
+	worked = s.supabase.AddHostnameToSiteRow(req.Context(), jwt, body.SiteId, body.Hostname)
+	if !worked {
+		http.Error(out, "Unable to add new hostname to Supabase row", http.StatusInternalServerError)
+		return
+	}
+
+	log.Printf("[INFO] All good, hostname %v created, responding 2xx...", body.Hostname)
 
 	return
 }

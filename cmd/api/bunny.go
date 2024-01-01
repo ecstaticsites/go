@@ -71,6 +71,15 @@ type CreatePullZoneResponse struct {
 	Hostnames []PullZoneHostname `json:"Hostnames"`
 }
 
+type AddOrRemoveCustomHostnameBody struct {
+	Hostname string `json:"Hostname"`
+}
+
+type ForceSslBody struct {
+	Hostname string `json:"Hostname"`
+	ForceSsl bool   `json:"ForceSSL"`
+}
+
 func (b BunnyClient) CreateStorageZone(ctx context.Context, siteId string) *CreateStorageZoneResponse {
 
 	body := CreateStorageZoneBody{
@@ -188,4 +197,116 @@ func (b BunnyClient) CreatePullZone(ctx context.Context, siteId string, storage 
 
 	log.Printf("[INFO] Bunny pull zone with ID %v successfully created", siteId)
 	return resp.Hostnames[0].Value
+}
+
+func (b BunnyClient) AddCustomHostname(ctx context.Context, zoneId int, hostname string) bool {
+
+	body := AddOrRemoveCustomHostnameBody{
+		Hostname: hostname,
+	}
+
+	log.Printf("[INFO] Adding custom hostname to site ID %v: %+v", zoneId, body)
+
+	var errorJson map[string]interface{}
+
+	err := requests.
+		URL(b.BunnyUrl).
+		Pathf("/pullzone/%v/addHostname", zoneId).
+		Header("AccessKey", b.BunnyAccessKey).
+		ContentType("application/json").
+		BodyJSON(&body).
+		ErrorJSON(&errorJson).
+		Post().
+		Fetch(ctx)
+
+	if err != nil {
+		log.Printf("[ERROR] Unable to add custom hostname to site ID %v: %v, response: %+v", zoneId, err, errorJson)
+		return false
+	}
+
+	log.Printf("[INFO] Custom hostname for site ID %v successfully added", zoneId)
+	return true
+}
+
+func (b BunnyClient) RemoveCustomHostname(ctx context.Context, zoneId int, hostname string) bool {
+
+	body := AddOrRemoveCustomHostnameBody{
+		Hostname: hostname,
+	}
+
+	log.Printf("[INFO] Removing custom hostname from site ID %v: %+v", zoneId, body)
+
+	var errorJson map[string]interface{}
+
+	err := requests.
+		URL(b.BunnyUrl).
+		Pathf("/pullzone/%v/removeHostname", zoneId).
+		Header("AccessKey", b.BunnyAccessKey).
+		ContentType("application/json").
+		BodyJSON(&body).
+		ErrorJSON(&errorJson).
+		Delete().
+		Fetch(ctx)
+
+	if err != nil {
+		log.Printf("[ERROR] Unable to delete custom hostname from site ID %v: %v, response: %+v", zoneId, err, errorJson)
+		return false
+	}
+
+	log.Printf("[INFO] Custom hostname for site ID %v successfully deleted", zoneId)
+	return true
+}
+
+func (b BunnyClient) SetUpFreeCertificate(ctx context.Context, hostname string) bool {
+
+	log.Printf("[INFO] Attempting to acquire free SSL certificate for hostname: %v", hostname)
+
+	var errorJson map[string]interface{}
+
+	err := requests.
+		URL(b.BunnyUrl).
+		Path("pullzone/loadFreeCertificate").
+		Header("AccessKey", b.BunnyAccessKey).
+		ContentType("application/json").
+		Param("hostname", hostname).
+		ErrorJSON(&errorJson).
+		Fetch(ctx)
+
+	if err != nil {
+		log.Printf("[ERROR] Unable to get SSL cert for hostname %v: %v, response: %+v", hostname, err, errorJson)
+		return false
+	}
+
+	log.Printf("[INFO] Free SSL certificate for %v successfully added", hostname)
+	return true
+}
+
+func (b BunnyClient) ForceSsl(ctx context.Context, zoneId int, hostname string) bool {
+
+	body := ForceSslBody{
+		Hostname: hostname,
+		ForceSsl: true,
+	}
+
+	log.Printf("[INFO] Setting forced SSL for site ID %v: %+v", zoneId, body)
+
+	var errorJson map[string]interface{}
+
+	err := requests.
+		URL(b.BunnyUrl).
+		Pathf("/pullzone/%v/setForceSSL", zoneId).
+		Header("AccessKey", b.BunnyAccessKey).
+		ContentType("application/json").
+		BodyJSON(&body).
+		ErrorJSON(&errorJson).
+		Post().
+		Fetch(ctx)
+
+	if err != nil {
+		log.Printf("[ERROR] Unable to set forced SSL for site ID %v: %v, response: %+v", zoneId, err, errorJson)
+		return false
+	}
+
+	log.Printf("[INFO] Forced SSL for site %v hostname %v successfully set", zoneId, hostname)
+	return true
 }
