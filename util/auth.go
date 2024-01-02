@@ -19,49 +19,51 @@ type Body struct {
 // a custom way of getting a JWT from an http.Request (this "custom way" being
 // to log in to supabase using the basic auth creds included in the req). For
 // use below in BasicAuthJwtVerifier, plugs into jwtauth.Verify
-func GetTokenFromBasicAuth(req *http.Request) string {
+func GetTokenFromBasicAuth(supaUrl, supaAnonKey string) func(req *http.Request) string {
+	return func(req *http.Request) string {
 
-	email, password, ok := req.BasicAuth()
-	if !ok {
-		log.Printf("Unable to parse basic auth credentials")
-		return ""
+		email, password, ok := req.BasicAuth()
+		if !ok {
+			log.Printf("Unable to parse basic auth credentials")
+			return ""
+		}
+
+		body := Body{
+			Email:    email,
+			Password: password,
+		}
+
+		var user map[string]interface{}
+
+		err := requests.
+			URL(supaUrl).
+			Path("/auth/v1/token").
+			Param("grant_type", "password").
+			Header("apikey", supaAnonKey).
+			// no authorization header since this is the anon / signin request
+			BodyJSON(&body).
+			ToJSON(&user).
+			Fetch(req.Context())
+
+		if err != nil {
+			log.Printf("Error authing with supabase: %v", err)
+			return ""
+		}
+
+		// this is a hack! It's the only way of keeping this token (the encoded string,
+		// not the Token object) around so we can use it in supabase calls later
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", user["access_token"].(string)))
+
+		return user["access_token"].(string)
 	}
-
-	body := Body{
-		Email:    email,
-		Password: password,
-	}
-
-	var user map[string]interface{}
-
-	err := requests.
-		URL("https://ewwccbgjnulfgcvfrsvj.supabase.co").
-		Path("/auth/v1/token").
-		Param("grant_type", "password").
-		Header("apikey", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV3d2NjYmdqbnVsZmdjdmZyc3ZqIiwicm9sZSI6ImFub24iLCJpYXQiOjE2OTM1ODE2ODUsImV4cCI6MjAwOTE1NzY4NX0.gI3YdNSC5GMkda2D2QPRMvnBdaMOS2ynfFKxis5-WKs").
-		// no authorization header since this is the anon / signin request
-		BodyJSON(&body).
-		ToJSON(&user).
-		Fetch(req.Context())
-
-	if err != nil {
-		log.Printf("Error authing with supabase: %v", err)
-		return ""
-	}
-
-	// this is a hack! It's the only way of keeping this token (the encoded string,
-	// not the Token object) around so we can use it in supabase calls later
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", user["access_token"].(string)))
-
-	return user["access_token"].(string)
 }
 
 // derived from https://github.com/go-chi/jwtauth/blob/master/jwtauth.go
 //
 // like jwtauth.Verifier, but gets the token from logging in to Supabase with
 // basic auth credentials instead of scanning headers/cookies for "Bearer $token"
-func BasicAuthJwtVerifier(ja *jwtauth.JWTAuth) func(http.Handler) http.Handler {
-	return jwtauth.Verify(ja, GetTokenFromBasicAuth)
+func BasicAuthJwtVerifier(ja *jwtauth.JWTAuth, supaUrl, supaAnonKey string) func(http.Handler) http.Handler {
+	return jwtauth.Verify(ja, GetTokenFromBasicAuth(supaUrl, supaAnonKey))
 }
 
 // derived from https://github.com/go-chi/jwtauth/blob/master/jwtauth.go

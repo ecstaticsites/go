@@ -84,7 +84,7 @@ var GitCmd = &cobra.Command{
 		r.Use(middleware.Recoverer)
 		r.Use(middleware.Logger)
 		r.Use(middleware.Timeout(60 * time.Second))
-		r.Use(util.BasicAuthJwtVerifier(jwtSecret))
+		r.Use(util.BasicAuthJwtVerifier(jwtSecret, config["SUPABASE_URL"], config["SUPABASE_ANON_KEY"]))
 		r.Use(util.CheckJwtMiddleware((config["PERMISSIVE_MODE"] == "true"), true))
 		r.Use(mid.CreateGitInitMiddleware())
 		r.Use(mid.CreateGitHookMiddleware())
