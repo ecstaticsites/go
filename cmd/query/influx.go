@@ -18,6 +18,7 @@ type InfluxClient struct {
 
 // below should be const, but golang knows better
 var VALIDGROUPBYS = []string{"", "browser", "os", "device", "country", "path", "statuscode"}
+var VALIDBUCKETBYS = []string{"", "1h", "1d"}
 var VALIDBOTS = []string{"true", "false"}
 
 func (i InfluxClient) HandleQuery(out http.ResponseWriter, req *http.Request) {
@@ -64,16 +65,15 @@ func (i InfluxClient) HandleQuery(out http.ResponseWriter, req *http.Request) {
 		http.Error(out, fmt.Sprintf("Invalid groupby %s (try one of %v)", groupby, VALIDGROUPBYS), http.StatusBadRequest)
 	}
 
+	bucketby := req.URL.Query().Get("bucketby")
+	if !slices.Contains(VALIDBUCKETBYS, bucketby) {
+		http.Error(out, fmt.Sprintf("Invalid bucketby %s (try one of %v)", bucketby, VALIDBUCKETBYS), http.StatusBadRequest)
+	}
+
 	tz := req.URL.Query().Get("tz")
 	if false {
 		// todo, some actual validation here, hashtag sql injection
 		http.Error(out, fmt.Sprintf("Invalid timezone %s", tz), http.StatusBadRequest)
-	}
-
-	// derive time bucket size based on the requested time range (they do not get to pick)
-	bucketby := "1d"
-	if (unixEnd - unixStart) <= 86400 {
-		bucketby = "1h"
 	}
 
 	queryStr, err := i.BuildInfluxQuery(hostname, includeBots, groupby, bucketby, tz, unixStart, unixEnd)
@@ -110,8 +110,12 @@ func (i InfluxClient) BuildInfluxQuery(hostname, includeBots, groupby, bucketby,
 	query.WriteString(" ")
 	query.WriteString(fmt.Sprintf("from \"%s\"", hostname))
 
+	// following two filters are shortcuts. Will need something more flexible later
 	query.WriteString(" ")
 	query.WriteString(fmt.Sprintf("where filetype = 'Page'"))
+
+	query.WriteString(" ")
+	query.WriteString(fmt.Sprintf("and statuscategory = '2xx'"))
 
 	// if includeBots is true, then we want everything -- so no filter
 	// todo -- isprobablybot is a string ?? should fix that
@@ -121,7 +125,7 @@ func (i InfluxClient) BuildInfluxQuery(hostname, includeBots, groupby, bucketby,
 	}
 
 	query.WriteString(" ")
-	query.WriteString(fmt.Sprintf("and time >= %ds and time <= %ds", unixStart, unixEnd))
+	query.WriteString(fmt.Sprintf("and time >= %ds and time < %ds", unixStart, unixEnd))
 
 	if groupby != "" || bucketby != "" {
 		query.WriteString(" ")
