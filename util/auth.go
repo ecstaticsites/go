@@ -145,3 +145,37 @@ func CheckHostnameMiddleware(permissive bool) func(next http.Handler) http.Handl
 		})
 	}
 }
+
+// similar to the above, but enforces "readonly" field in app_metadata to disallow
+// the creation or updates of sites
+func CheckReadOnlyMiddleware(permissive bool) func(next http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(out http.ResponseWriter, req *http.Request) {
+
+			if permissive {
+
+				log.Printf("Permissive mode is enabled, not validating JWT tokens! SHOULD NOT SEE IN PROD")
+
+			} else {
+
+				// already checked for errors etc in the previous CheckJwtMiddleware
+				_, claims, _ := jwtauth.FromContext(req.Context())
+
+				readonly, err := GetReadonlyFromClaims(claims)
+				if err != nil {
+					http.Error(out, fmt.Sprintf("Unable to get readonly from JWT claims: %v", err), http.StatusBadRequest)
+					return
+				}
+
+				if (readonly) {
+					http.Error(out, fmt.Sprintf("User's account is readonly"), http.StatusUnauthorized)
+					return
+				}
+			}
+
+			// user is allowed to query this hostname, pass it through
+			next.ServeHTTP(out, req)
+			return
+		})
+	}
+}

@@ -107,6 +107,7 @@ var ApiCmd = &cobra.Command{
 		r.Use(cors.Handler(corsOptions))
 		r.Use(jwtauth.Verifier(jwtSecret))
 		r.Use(util.CheckJwtMiddleware((config["PERMISSIVE_MODE"] == "true"), false))
+		r.Use(util.CheckReadOnlyMiddleware(config["PERMISSIVE_MODE"] == "true"))
 
 		r.Post("/site", s.CreateSite)
 		r.Post("/hostname", s.AddHostname)
