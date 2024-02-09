@@ -111,7 +111,7 @@ func (m Middlewarer) CreateGitHookMiddleware() func(http.Handler) http.Handler {
 				StorageUrl:    "ftp://storage.bunnycdn.com:21/",
 				StorageName:   repoName, // we work hard so storage name == pull zone name == site ID
 				StorageToken:  config[0].StorageToken,
-				PurgeCacheUrl: "http://api.default:80/purge/",
+				PurgeCacheUrl: "http://api.default:8080/purge", // todo, maybe shouldn't hardcode this
 				PurgeCacheJwt: jwt,
 			}
 
