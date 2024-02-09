@@ -32,7 +32,7 @@ git ftp push --auto-init
 
 echo "all uploaded, now purging CDN cache..."
 
-curl "{{.PurgeCacheUrl}}" -H "Authorization: {{.PurgeCacheJwt}}" -d '{"siteid": "{{.SiteId}}"}'
+curl "{{.PurgeCacheUrl}}" -H "content-type: application/json" -H "Authorization: {{.PurgeCacheJwt}}" -d '{"siteid": "{{.SiteId}}"}'
 
 echo "cache purged, now cleaning up local files..."
 
