@@ -167,7 +167,7 @@ func CheckReadOnlyMiddleware(permissive bool) func(next http.Handler) http.Handl
 					return
 				}
 
-				if (readonly) {
+				if readonly {
 					http.Error(out, fmt.Sprintf("User's account is readonly"), http.StatusUnauthorized)
 					return
 				}

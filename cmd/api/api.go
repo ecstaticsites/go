@@ -27,8 +27,8 @@ type CreateSiteResponse struct {
 }
 
 type AddHostnameRequest struct {
-	SiteId     string `json:"siteid"`
-	Hostname   string `json:"hostname"`
+	SiteId   string `json:"siteid"`
+	Hostname string `json:"hostname"`
 }
 
 type PurgeCacheRequest struct {
@@ -114,13 +114,13 @@ func (s Server) CreateSite(out http.ResponseWriter, req *http.Request) {
 	}
 
 	// TODO, can/should probably use go-chi render for all this?
-  out.Header().Set("Content-Type", "application/json")
+	out.Header().Set("Content-Type", "application/json")
 
-  err = json.NewEncoder(out).Encode(resp)
-  if err != nil {
+	err = json.NewEncoder(out).Encode(resp)
+	if err != nil {
 		http.Error(out, "Unable to render output, SITE WAS STILL CREATED", http.StatusInternalServerError)
 		return
-  }
+	}
 
 	return
 }

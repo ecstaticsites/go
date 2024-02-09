@@ -35,12 +35,12 @@ type AuthorizeHostnameBody struct {
 func (s SupabaseAdminClient) CreateSiteRow(ctx context.Context, userId, siteId, nickname string, storage *CreateStorageZoneResponse, pull *CreatePullZoneResponse) bool {
 
 	body := CreateSiteRowBody{
-		Id: siteId,
-		CreatorId: userId,
-		Nickname: nickname,
+		Id:           siteId,
+		CreatorId:    userId,
+		Nickname:     nickname,
 		StorageToken: storage.Password,
-		PullZoneId: pull.Id,
-		Hostname: pull.Hostnames[0].Value,
+		PullZoneId:   pull.Id,
+		Hostname:     pull.Hostnames[0].Value,
 	}
 
 	log.Printf("[INFO] Creating new SITE row with request body: %+v", body)
