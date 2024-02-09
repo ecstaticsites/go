@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"cbnr/client"
 	"cbnr/util"
 
 	"github.com/go-chi/chi/v5"
@@ -81,18 +82,23 @@ var ApiCmd = &cobra.Command{
 
 		log.Printf("[INFO] Setting up bunny and supabase clients...")
 
-		sup := SupabaseClient{
+		supaNormie := client.SupabaseNormieClient{
+			SupabaseUrl:     config["SUPABASE_URL"],
+			SupabaseAnonKey: config["SUPABASE_ANON_KEY"],
+		}
+
+		supaAdmin := client.SupabaseAdminClient{
 			SupabaseUrl:        config["SUPABASE_URL"],
 			SupabaseAnonKey:    config["SUPABASE_ANON_KEY"],
 			SupabaseServiceKey: config["SUPABASE_SERVICE_KEY"],
 		}
 
-		bun := BunnyClient{
+		bunnyAdmin := client.BunnyAdminClient{
 			BunnyUrl:       config["BUNNY_URL"],
 			BunnyAccessKey: config["BUNNY_API_KEY"],
 		}
 
-		s := Server{sup, bun}
+		s := Server{supaNormie, supaAdmin, bunnyAdmin}
 
 		// ------------------------------------------------------------------------
 

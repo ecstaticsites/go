@@ -25,6 +25,7 @@ tasks:
     mount_paths:
     - go-build/
     input_paths:
+    - client/
     - cmd/
     - util/
     - main.go

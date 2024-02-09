@@ -72,7 +72,7 @@ func (m Middlewarer) CreateGitHookMiddleware() func(http.Handler) http.Handler {
 				return
 			}
 
-			token := req.Header.Get("Authorization")
+			jwt := req.Header.Get("Authorization")
 
 			repoName := strings.Split(req.URL.Path, "/")[1]
 
@@ -84,7 +84,7 @@ func (m Middlewarer) CreateGitHookMiddleware() func(http.Handler) http.Handler {
 				Param("select", "index_path,storage_token").
 				Param("id", fmt.Sprintf("eq.%s", repoName)).
 				Header("apikey", m.SupabaseAnonKey).
-				Header("Authorization", token).
+				Header("Authorization", jwt).
 				ToJSON(&config).
 				Fetch(req.Context())
 
@@ -108,11 +108,13 @@ func (m Middlewarer) CreateGitHookMiddleware() func(http.Handler) http.Handler {
 			hookValues := HookValues{
 				SiteId:       repoName,
 				SiteSubDir:   path.Dir(config[0].IndexPath),
-				StorageHost:  "storage.bunnycdn.com",
-				StoragePort:  "21",
+				StorageUrl:  "ftp://storage.bunnycdn.com:21/",
 				// we work hard so that storage name == pull zone name == site ID
 				StorageName:  repoName,
 				StorageToken: config[0].StorageToken,
+				UserJwt: jwt,
+				PurgeCacheUrl: "http://api.default:80/purge/",
+				PurgeCacheToken: token,
 			}
 
 			hookPath := fmt.Sprintf("/tmp/%s/.git/hooks/post-receive", repoName)

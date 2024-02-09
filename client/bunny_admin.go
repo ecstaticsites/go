@@ -1,4 +1,4 @@
-package api
+package client
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-type BunnyClient struct {
+type BunnyAdminClient struct {
 	BunnyUrl       string
 	BunnyAccessKey string
 }
@@ -80,7 +80,7 @@ type ForceSslBody struct {
 	ForceSsl bool   `json:"ForceSSL"`
 }
 
-func (b BunnyClient) CreateStorageZone(ctx context.Context, siteId string) *CreateStorageZoneResponse {
+func (b BunnyAdminClient) CreateStorageZone(ctx context.Context, siteId string) *CreateStorageZoneResponse {
 
 	body := CreateStorageZoneBody{
 		// must be globally unique, like s3 buckets
@@ -133,7 +133,7 @@ func (b BunnyClient) CreateStorageZone(ctx context.Context, siteId string) *Crea
 	return &resp
 }
 
-func (b BunnyClient) CreatePullZone(ctx context.Context, siteId string, storage *CreateStorageZoneResponse) *CreatePullZoneResponse {
+func (b BunnyAdminClient) CreatePullZone(ctx context.Context, siteId string, storage *CreateStorageZoneResponse) *CreatePullZoneResponse {
 
 	body := CreatePullZoneBody{
 		Name:                          siteId,
@@ -199,7 +199,7 @@ func (b BunnyClient) CreatePullZone(ctx context.Context, siteId string, storage 
 	return &resp
 }
 
-func (b BunnyClient) AddCustomHostname(ctx context.Context, zoneId int, hostname string) bool {
+func (b BunnyAdminClient) AddCustomHostname(ctx context.Context, zoneId int, hostname string) bool {
 
 	body := AddOrRemoveCustomHostnameBody{
 		Hostname: hostname,
@@ -228,7 +228,7 @@ func (b BunnyClient) AddCustomHostname(ctx context.Context, zoneId int, hostname
 	return true
 }
 
-func (b BunnyClient) RemoveCustomHostname(ctx context.Context, zoneId int, hostname string) bool {
+func (b BunnyAdminClient) RemoveCustomHostname(ctx context.Context, zoneId int, hostname string) bool {
 
 	body := AddOrRemoveCustomHostnameBody{
 		Hostname: hostname,
@@ -257,7 +257,7 @@ func (b BunnyClient) RemoveCustomHostname(ctx context.Context, zoneId int, hostn
 	return true
 }
 
-func (b BunnyClient) SetUpFreeCertificate(ctx context.Context, hostname string) bool {
+func (b BunnyAdminClient) SetUpFreeCertificate(ctx context.Context, hostname string) bool {
 
 	log.Printf("[INFO] Attempting to acquire free SSL certificate for hostname: %v", hostname)
 
@@ -281,14 +281,14 @@ func (b BunnyClient) SetUpFreeCertificate(ctx context.Context, hostname string) 
 	return true
 }
 
-func (b BunnyClient) ForceSsl(ctx context.Context, zoneId int, hostname string) bool {
+func (b BunnyAdminClient) ForceSsl(ctx context.Context, zoneId int, hostname string) bool {
 
 	body := ForceSslBody{
 		Hostname: hostname,
 		ForceSsl: true,
 	}
 
-	log.Printf("[INFO] Setting forced SSL for site ID %v: %+v", zoneId, body)
+	log.Printf("[INFO] Setting forced SSL for pull zone ID %v: %+v", zoneId, body)
 
 	var errorJson map[string]interface{}
 
@@ -303,10 +303,34 @@ func (b BunnyClient) ForceSsl(ctx context.Context, zoneId int, hostname string) 
 		Fetch(ctx)
 
 	if err != nil {
-		log.Printf("[ERROR] Unable to set forced SSL for site ID %v: %v, response: %+v", zoneId, err, errorJson)
+		log.Printf("[ERROR] Unable to set forced SSL for zone ID %v: %v, response: %+v", zoneId, err, errorJson)
 		return false
 	}
 
-	log.Printf("[INFO] Forced SSL for site %v hostname %v successfully set", zoneId, hostname)
+	log.Printf("[INFO] Forced SSL for zone %v hostname %v successfully set", zoneId, hostname)
+	return true
+}
+
+func (b BunnyAdminClient) PurgeCache(ctx context.Context, zoneId int) bool {
+
+	log.Printf("[INFO] Purging the cache for pull zone ID %v", zoneId)
+
+	var errorJson map[string]interface{}
+
+	err := requests.
+		URL(b.BunnyUrl).
+		Pathf("/pullzone/%v/purgeCache", zoneId).
+		Header("AccessKey", b.BunnyAccessKey).
+		ContentType("application/json").
+		ErrorJSON(&errorJson).
+		Post().
+		Fetch(ctx)
+
+	if err != nil {
+		log.Printf("[ERROR] Unable to purge cache for zone ID %v: %v, response: %+v", zoneId, err, errorJson)
+		return false
+	}
+
+	log.Printf("[INFO] Purged cache for zone ID %v", zoneId)
 	return true
 }

@@ -1,4 +1,4 @@
-package api
+package client
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"github.com/carlmjohnson/requests"
 )
 
-type SupabaseClient struct {
+type SupabaseAdminClient struct {
 	SupabaseUrl        string
 	SupabaseAnonKey    string
 	SupabaseServiceKey string
@@ -32,7 +32,7 @@ type AuthorizeHostnameBody struct {
 	AppMetadata map[string][]string `json:"app_metadata"`
 }
 
-func (s SupabaseClient) CreateSiteRow(ctx context.Context, jwt, userId, siteId, nickname string, storage *CreateStorageZoneResponse, pull *CreatePullZoneResponse) bool {
+func (s SupabaseAdminClient) CreateSiteRow(ctx context.Context, userId, siteId, nickname string, storage *CreateStorageZoneResponse, pull *CreatePullZoneResponse) bool {
 
 	body := CreateSiteRowBody{
 		Id: siteId,
@@ -51,7 +51,7 @@ func (s SupabaseClient) CreateSiteRow(ctx context.Context, jwt, userId, siteId, 
 		URL(s.SupabaseUrl).
 		Path("/rest/v1/site").
 		Header("apikey", s.SupabaseAnonKey).
-		Header("Authorization", jwt).
+		Header("Authorization", fmt.Sprintf("Bearer %v", s.SupabaseServiceKey)).
 		ContentType("application/json").
 		BodyJSON(&body).
 		ErrorJSON(&errorJson).
@@ -67,7 +67,7 @@ func (s SupabaseClient) CreateSiteRow(ctx context.Context, jwt, userId, siteId, 
 	return true
 }
 
-func (s SupabaseClient) AuthorizeHostname(ctx context.Context, userId, newHostname string, existingHostnames []string) bool {
+func (s SupabaseAdminClient) AuthorizeHostname(ctx context.Context, userId, newHostname string, existingHostnames []string) bool {
 
 	// mutating in place because Go makes anything else annoyingly difficult
 	existingHostnames = append(existingHostnames, newHostname)
@@ -103,7 +103,7 @@ func (s SupabaseClient) AuthorizeHostname(ctx context.Context, userId, newHostna
 	return true
 }
 
-func (s SupabaseClient) AddHostnameToSiteRow(ctx context.Context, jwt, siteId, hostname string) bool {
+func (s SupabaseAdminClient) AddHostnameToSiteRow(ctx context.Context, siteId, hostname string) bool {
 
 	body := AddHostnameToSiteRowBody{
 		CustomHostname: hostname,
@@ -118,7 +118,7 @@ func (s SupabaseClient) AddHostnameToSiteRow(ctx context.Context, jwt, siteId, h
 		Path("/rest/v1/site").
 		Param("id", fmt.Sprintf("eq.%v", siteId)).
 		Header("apikey", s.SupabaseAnonKey).
-		Header("Authorization", jwt).
+		Header("Authorization", fmt.Sprintf("Bearer %v", s.SupabaseServiceKey)).
 		ContentType("application/json").
 		BodyJSON(&body).
 		ErrorJSON(&errorJson).
