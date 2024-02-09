@@ -106,15 +106,13 @@ func (m Middlewarer) CreateGitHookMiddleware() func(http.Handler) http.Handler {
 			log.Printf("site ID found for repo %s, config %s", repoName, config[0])
 
 			hookValues := HookValues{
-				SiteId:     repoName,
-				SiteSubDir: path.Dir(config[0].IndexPath),
-				StorageUrl: "ftp://storage.bunnycdn.com:21/",
-				// we work hard so that storage name == pull zone name == site ID
-				StorageName:     repoName,
-				StorageToken:    config[0].StorageToken,
-				UserJwt:         jwt,
-				PurgeCacheUrl:   "http://api.default:80/purge/",
-				PurgeCacheToken: token,
+				SiteId:        repoName,
+				SiteSubDir:    path.Dir(config[0].IndexPath),
+				StorageUrl:    "ftp://storage.bunnycdn.com:21/",
+				StorageName:   repoName, // we work hard so storage name == pull zone name == site ID
+				StorageToken:  config[0].StorageToken,
+				PurgeCacheUrl: "http://api.default:80/purge/",
+				PurgeCacheJwt: jwt,
 			}
 
 			hookPath := fmt.Sprintf("/tmp/%s/.git/hooks/post-receive", repoName)

@@ -14,18 +14,18 @@ type SupabaseNormieClient struct {
 }
 
 type SiteRow struct {
-	Id             string
-	CreatorId      string
-	Nickname       string
-	CreatedAt      string
-	LastUpdatedAt  string
-	StorageToken   string
-	IndexPath      string
-	GithubRepo     string
-	CustomHostname string
-	DeployedSha    string
-	PullZoneId     int
-	Hostname       string
+	Id             string `json:"id"`
+	CreatorId      string `json:"creator_id"`
+	Nickname       string `json:"nickname"`
+	CreatedAt      string `json:"created_at"`
+	LastUpdatedAt  string `json:"last_updated_at"`
+	StorageToken   string `json:"storage_token"`
+	IndexPath      string `json:"index_path"`
+	GithubRepo     string `json:"github_repo"`
+	CustomHostname string `json:"custom_hostname"`
+	DeployedSha    string `json:"deployed_sha"`
+	PullZoneId     int    `json:"pull_zone_id"`
+	Hostname       string `json:"hostname"`
 }
 
 func (s SupabaseNormieClient) GetSiteRow(ctx context.Context, jwt, siteId string) *SiteRow {

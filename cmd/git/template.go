@@ -1,14 +1,13 @@
 package git
 
 type HookValues struct {
-	SiteId          string
-	SiteSubDir      string
-	StorageUrl      string
-	StorageName     string
-	StorageToken    string
-	UserJwt         string
-	PurgeCacheUrl   string
-	PurgeCacheToken string
+	SiteId        string
+	SiteSubDir    string
+	StorageUrl    string
+	StorageName   string
+	StorageToken  string
+	PurgeCacheUrl string
+	PurgeCacheJwt string
 }
 
 var HookTemplate = `#!/bin/bash
@@ -33,7 +32,7 @@ git ftp push --auto-init
 
 echo "all uploaded, now purging CDN cache..."
 
-curl "{{.PurgeCacheUrl}}" -H "Authorization: {{.UserJwt}}" -d '{"siteid": "{{.SiteId}}"}'
+curl "{{.PurgeCacheUrl}}" -H "Authorization: {{.PurgeCacheJwt}}" -d '{"siteid": "{{.SiteId}}"}'
 
 echo "cache purged, now cleaning up local files..."
 

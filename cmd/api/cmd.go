@@ -117,6 +117,7 @@ var ApiCmd = &cobra.Command{
 
 		r.Post("/site", s.CreateSite)
 		r.Post("/hostname", s.AddHostname)
+		r.Post("/purge", s.PurgeCache)
 
 		// ------------------------------------------------------------------------
 

@@ -5,7 +5,6 @@ import (
 	"log"
 
 	"github.com/carlmjohnson/requests"
-	"golang.org/x/exp/slices"
 )
 
 type BunnyAdminClient struct {
@@ -87,8 +86,9 @@ func (b BunnyAdminClient) CreateStorageZone(ctx context.Context, siteId string) 
 		Name: siteId,
 		// this can AFAIU only be Germany if edge storage is selected (below)
 		Region: "DE",
-		// terrible english-speaking bias here, will expand later if it makes sense
-		ReplicationRegions: []string{"NY", "LA", "SYD"},
+		// NO REGIONS BELOW! Replication lag causes pull zone purge to not work, so
+		// let's just handle worldwide-speediness with actual CDN PoPs shall we
+		ReplicationRegions: []string{},
 		// zero is "standard", one is "edge" which means SSD storage
 		ZoneTier: 1,
 	}
@@ -119,7 +119,7 @@ func (b BunnyAdminClient) CreateStorageZone(ctx context.Context, siteId string) 
 		return nil
 	}
 
-	if !slices.Equal(resp.ReplicationRegions, []string{"NY", "LA", "SYD"}) {
+	if len(resp.ReplicationRegions) != 0 {
 		log.Printf("[ERROR] Storage zone replication regions somehow created wrong: %v", resp.ReplicationRegions)
 		return nil
 	}
@@ -195,7 +195,7 @@ func (b BunnyAdminClient) CreatePullZone(ctx context.Context, siteId string, sto
 		return nil
 	}
 
-	log.Printf("[INFO] Bunny pull zone with ID %v successfully created", siteId)
+	log.Printf("[INFO] Bunny pull zone with name %v successfully created", siteId)
 	return &resp
 }
 
@@ -205,7 +205,7 @@ func (b BunnyAdminClient) AddCustomHostname(ctx context.Context, zoneId int, hos
 		Hostname: hostname,
 	}
 
-	log.Printf("[INFO] Adding custom hostname to site ID %v: %+v", zoneId, body)
+	log.Printf("[INFO] Adding custom hostname to pull zone ID %v: %+v", zoneId, body)
 
 	var errorJson map[string]interface{}
 
@@ -220,11 +220,11 @@ func (b BunnyAdminClient) AddCustomHostname(ctx context.Context, zoneId int, hos
 		Fetch(ctx)
 
 	if err != nil {
-		log.Printf("[ERROR] Unable to add custom hostname to site ID %v: %v, response: %+v", zoneId, err, errorJson)
+		log.Printf("[ERROR] Unable to add custom hostname to pull zone ID %v: %v, response: %+v", zoneId, err, errorJson)
 		return false
 	}
 
-	log.Printf("[INFO] Custom hostname for site ID %v successfully added", zoneId)
+	log.Printf("[INFO] Custom hostname for pull zone ID %v successfully added", zoneId)
 	return true
 }
 
@@ -234,7 +234,7 @@ func (b BunnyAdminClient) RemoveCustomHostname(ctx context.Context, zoneId int, 
 		Hostname: hostname,
 	}
 
-	log.Printf("[INFO] Removing custom hostname from site ID %v: %+v", zoneId, body)
+	log.Printf("[INFO] Removing custom hostname from pull zone ID %v: %+v", zoneId, body)
 
 	var errorJson map[string]interface{}
 
@@ -249,11 +249,11 @@ func (b BunnyAdminClient) RemoveCustomHostname(ctx context.Context, zoneId int, 
 		Fetch(ctx)
 
 	if err != nil {
-		log.Printf("[ERROR] Unable to delete custom hostname from site ID %v: %v, response: %+v", zoneId, err, errorJson)
+		log.Printf("[ERROR] Unable to delete custom hostname from pull zone ID %v: %v, response: %+v", zoneId, err, errorJson)
 		return false
 	}
 
-	log.Printf("[INFO] Custom hostname for site ID %v successfully deleted", zoneId)
+	log.Printf("[INFO] Custom hostname for pull zone ID %v successfully deleted", zoneId)
 	return true
 }
 
