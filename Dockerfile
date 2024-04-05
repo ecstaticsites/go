@@ -13,6 +13,7 @@ RUN curl https://raw.githubusercontent.com/stepchowfun/toast/main/install.sh -LS
 
 COPY misc/GeoLite2-Country.mmdb .
 
-COPY out/cbnr .
+COPY out/cbnr /usr/bin/cbnr
 
-ENTRYPOINT ["./cbnr"]
+# need to use entrypoint from base image, it's what starts docker
+ENTRYPOINT ["entrypoint.sh"]
