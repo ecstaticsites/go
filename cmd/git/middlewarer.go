@@ -76,6 +76,8 @@ func (m Middlewarer) CreateGitHookMiddleware() func(http.Handler) http.Handler {
 
 			repoName := strings.Split(req.URL.Path, "/")[1]
 
+			// todo, replace all the below with a supabase_normie client call, sheesh
+
 			var config []SiteConfig
 
 			err := requests.

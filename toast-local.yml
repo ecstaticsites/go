@@ -1,0 +1,95 @@
+# this toastfile is not used to build a Go binary
+# it instead assumes one has already been built (see toast.yml)
+# mounts it, then uses a DIFFERENT docker image to run it
+# namely, the same base docker image as the Dockerfile
+# to allow for local development
+# note it should be ~identical to the Dockerfile
+# and honestly it's a bit silly to have both but WHATEVER
+# see also https://github.com/stepchowfun/toast/issues/305
+image: cruizba/ubuntu-dind:noble-26.0.0
+command_prefix: set -euxo pipefail
+tasks:
+  gitftp:
+    command: |
+      apt-get update
+      apt-get install -y git ca-certificates git-ftp
+      update-ca-certificates
+  toast:
+    environment:
+      VERSION: "0.47.6"
+    command: |
+      curl https://raw.githubusercontent.com/stepchowfun/toast/main/install.sh -LSfs | sh
+  intake:
+    cache: false
+    input_paths:
+    - out/cbnr
+    - misc/GeoLite2-Country.mmdb
+    environment:
+      SYSLOG_LISTENER_PORT: "517"
+      SYSLOG_LISTENER_UDP: "yup"
+      INFLUX_URL: "http://host.docker.internal:8086"
+      INFLUX_DB_NAME: "testdb"
+      MMDB_PATH: "/scratch/misc/GeoLite2-Country.mmdb"
+    ports:
+    - 517:517
+    command: |
+      out/cbnr intake
+  query:
+    cache: false
+    input_paths:
+    - out/cbnr
+    environment:
+      # need to skip JWT validation in dev
+      PERMISSIVE_MODE: "true"
+      HTTP_LISTENER_PORT: "8080"
+      METRICS_LISTENER_PORT: "8081"
+      # this is the how to hit host's 127.0.0.1 inside a container
+      INFLUX_URL: "http://host.docker.internal:8086"
+      INFLUX_DB_NAME: "testdb"
+      # would love to use wildcard here, but disallowed with credentials
+      CORS_ALLOWED_ORIGIN: "http://127.0.0.1:5173"
+      JWT_SECRET: "supersecretplaceholder"
+    ports:
+    - 8080:8080
+    - 8081:8081
+    command: |
+      out/cbnr query
+  api:
+    cache: false
+    input_paths:
+    - out/cbnr
+    environment:
+      CORS_ALLOWED_ORIGIN: "http://127.0.0.1:5173"
+      PERMISSIVE_MODE: "true"
+      HTTP_LISTENER_PORT: "8080"
+      METRICS_LISTENER_PORT: "8081"
+      JWT_SECRET: "supersecretplaceholder"
+      SUPABASE_URL: "https://aaa.supabase.co"
+      SUPABASE_ANON_KEY: "supersecretplaceholder"
+      SUPABASE_SERVICE_KEY: "supersecretplaceholder"
+      BUNNY_URL: "https://bbb.bunny.net"
+      BUNNY_API_KEY: "supersecretplaceholder"
+    ports:
+    - 8080:8080
+    command: |
+      out/cbnr api
+  git:
+    cache: false
+    input_paths:
+    - out/cbnr
+    dependencies:
+    - gitftp
+    - toast
+    environment:
+      PERMISSIVE_MODE: "true"
+      HTTP_LISTENER_PORT: "8080"
+      METRICS_LISTENER_PORT: "8081"
+      JWT_SECRET: "supersecretplaceholder"
+      SUPABASE_URL: "aaa.supabase.co"
+      SUPABASE_ANON_KEY: "supersecretplaceholder"
+    ports:
+    - 8080:8080
+    extra_docker_arguments:
+    - "--privileged"
+    command: |
+      out/cbnr git

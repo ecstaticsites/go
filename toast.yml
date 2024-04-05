@@ -2,10 +2,6 @@ image: golang:1.21
 command_prefix: set -euxo pipefail
 location: /scratch
 tasks:
-  gitftp:
-    command: |
-      apt-get update
-      apt-get install -y git-ftp
   deps:
     input_paths:
     - go.mod
@@ -16,7 +12,6 @@ tasks:
     # I would like to cache this but go-build files prevent it
     cache: false
     dependencies:
-    - gitftp
     - deps
     environment:
       GOCACHE: /scratch/go-build
@@ -47,73 +42,3 @@ tasks:
   #   - out/cbnr
   #   command: |
   #     go test
-  intake:
-    cache: false
-    dependencies:
-    - build
-    environment:
-      SYSLOG_LISTENER_PORT: "517"
-      SYSLOG_LISTENER_UDP: "yup"
-      INFLUX_URL: "http://host.docker.internal:8086"
-      INFLUX_DB_NAME: "testdb"
-      MMDB_PATH: "/scratch/GeoLite2-Country.mmdb"
-    ports:
-    - 517:517
-    input_paths:
-    - GeoLite2-Country.mmdb
-    command: |
-      out/cbnr intake
-  query:
-    cache: false
-    dependencies:
-    - build
-    environment:
-      # need to skip JWT validation in dev
-      PERMISSIVE_MODE: "true"
-      HTTP_LISTENER_PORT: "8080"
-      METRICS_LISTENER_PORT: "8081"
-      # this is the how to hit host's 127.0.0.1 inside a container
-      INFLUX_URL: "http://host.docker.internal:8086"
-      INFLUX_DB_NAME: "testdb"
-      # would love to use wildcard here, but disallowed with credentials
-      CORS_ALLOWED_ORIGIN: "http://127.0.0.1:5173"
-      JWT_SECRET: "supersecretplaceholder"
-    ports:
-    - 8080:8080
-    - 8081:8081
-    command: |
-      out/cbnr query
-  api:
-    cache: false
-    dependencies:
-    - build
-    environment:
-      CORS_ALLOWED_ORIGIN: "http://127.0.0.1:5173"
-      PERMISSIVE_MODE: "true"
-      HTTP_LISTENER_PORT: "8080"
-      METRICS_LISTENER_PORT: "8081"
-      JWT_SECRET: "supersecretplaceholder"
-      SUPABASE_URL: "https://aaa.supabase.co"
-      SUPABASE_ANON_KEY: "supersecretplaceholder"
-      SUPABASE_SERVICE_KEY: "supersecretplaceholder"
-      BUNNY_URL: "https://bbb.bunny.net"
-      BUNNY_API_KEY: "supersecretplaceholder"
-    ports:
-    - 8080:8080
-    command: |
-      out/cbnr api
-  git:
-    cache: false
-    dependencies:
-    - build
-    environment:
-      PERMISSIVE_MODE: "true"
-      HTTP_LISTENER_PORT: "8080"
-      METRICS_LISTENER_PORT: "8081"
-      JWT_SECRET: "supersecretplaceholder"
-      SUPABASE_URL: "aaa.supabase.co"
-      SUPABASE_ANON_KEY: "supersecretplaceholder"
-    ports:
-    - 8080:8080
-    command: |
-      out/cbnr git
