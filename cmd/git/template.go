@@ -10,38 +10,43 @@ type HookValues struct {
 	PurgeCacheJwt string
 }
 
-var HookTemplate = `#!/bin/bash
+var HookTemplate = `#!/usr/bin/env bash
 set -euo pipefail
 
 echo "hi..."
 
-echo "you just pushed to {{.SiteId}}, setting up git-ftp..."
+echo "you just pushed to {{.SiteId}}!"
 
-git config git-ftp.url "{{.StorageUrl}}"
-git config git-ftp.user "{{.StorageName}}"
-git config git-ftp.password "{{.StorageToken}}"
-git config git-ftp.syncroot "{{.SiteSubDir}}"
+while read oldrev newrev refname
+do
+  branch=$(git rev-parse --symbolic --abbrev-ref $refname)
+done
 
-echo "checking out main branch..."
+echo "you just pushed to branch $branch!"
 
-git checkout main
+git config core.bare false
+
+cd ..
+
+# https://stackoverflow.com/questions/10507942
+GIT_DIR=".git" git checkout "$branch"
 
 if [ -f "toast.yml" ]; then
-   echo "file toast.yml found, attempting to build site..."
-   toast build
+  echo "file toast.yml found, attempting to build site..."
+  toast build
 else
-   echo "file toast.yml not found, assuming site is raw HTML..."
+  echo "file toast.yml not found, assuming site is raw HTML..."
 fi
 
 echo "uploading files to CDN..."
 
-git ftp push --auto-init
+cd {{.SiteSubDir}}
+
+lftp -u {{.StorageName}},{{.StorageToken}} -e "mirror --reverse --parallel=4 --verbose --delete .; bye" {{.StorageUrl}}
 
 echo "all uploaded, now purging CDN cache..."
 
-# todo, quiet curl
-
-curl "{{.PurgeCacheUrl}}" -H "content-type: application/json" -H "Authorization: {{.PurgeCacheJwt}}" -d '{"siteid": "{{.SiteId}}"}'
+curl --silent "{{.PurgeCacheUrl}}" -H "content-type: application/json" -H "Authorization: {{.PurgeCacheJwt}}" -d '{"siteid": "{{.SiteId}}"}'
 
 # todo, also need a curl here to supabase to update last_updated_at and deployed_sha
 

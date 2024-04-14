@@ -5,7 +5,7 @@ FROM cruizba/ubuntu-dind:noble-26.0.0
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y git ca-certificates git-ftp
+RUN apt-get update && apt-get install -y git ca-certificates lftp
 RUN update-ca-certificates
 
 ARG VERSION=0.47.6

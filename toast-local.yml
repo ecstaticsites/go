@@ -9,10 +9,10 @@
 image: cruizba/ubuntu-dind:noble-26.0.0
 command_prefix: set -euxo pipefail
 tasks:
-  gitftp:
+  lftp:
     command: |
       apt-get update
-      apt-get install -y git ca-certificates git-ftp
+      apt-get install -y git ca-certificates lftp
       update-ca-certificates
   toast:
     environment:
@@ -78,7 +78,7 @@ tasks:
     input_paths:
     - out/cbnr
     dependencies:
-    - gitftp
+    - lftp
     - toast
     environment:
       PERMISSIVE_MODE: "true"
