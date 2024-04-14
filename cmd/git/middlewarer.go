@@ -90,8 +90,8 @@ func (m Middlewarer) CreateGitHookMiddleware() func(http.Handler) http.Handler {
 				StorageUrl:   "ftp://storage.bunnycdn.com:21/",
 				StorageName:  repoName, // we work hard so storage name == pull zone name == site ID
 				StorageToken: row.StorageToken,
-				ApiUrl:       fmt.Sprintf("%s/purge", m.ApiUrl),
-				ApiJwt:       jwt,
+				PostPushUrl:  fmt.Sprintf("%s/postpush", m.ApiUrl),
+				PostPushJwt:  jwt,
 			}
 
 			hookPath := fmt.Sprintf("/tmp/%s/.git/hooks/post-receive", repoName)

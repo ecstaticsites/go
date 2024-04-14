@@ -6,8 +6,8 @@ type HookValues struct {
 	StorageUrl   string
 	StorageName  string
 	StorageToken string
-	ApiUrl       string
-	ApiJwt       string
+	PostPushUrl  string
+	PostPushJwt  string
 }
 
 var HookTemplate = `#!/usr/bin/env bash
@@ -47,7 +47,7 @@ lftp -u {{.StorageName}},{{.StorageToken}} -e "mirror --reverse --parallel=4 --v
 
 echo "all uploaded, updating site row metadata and purging CDN cache..."
 
-curl --silent "{{.ApiUrl}}/postpush" -H "Authorization: {{.ApiJwt}}" --json "{\"siteid\": \"{{.SiteId}}\", \"sha\": \"$newsha\"}"
+curl --silent "{{.PostPushUrl}}" -H "Authorization: {{.PostPushJwt}}" --json "{\"siteid\": \"{{.SiteId}}\", \"sha\": \"$newsha\"}"
 
 echo "cache purged, now cleaning up local files..."
 
