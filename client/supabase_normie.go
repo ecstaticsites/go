@@ -28,6 +28,11 @@ type SiteRow struct {
 	Hostname       string `json:"hostname"`
 }
 
+type UpdateFieldsBody struct {
+	DeployedSha   string `json:"deployed_sha"`
+	LastUpdatedAt string `json:"last_updated_at"`
+}
+
 func (s SupabaseNormieClient) GetSiteRow(ctx context.Context, jwt, siteId string) *SiteRow {
 
 	log.Printf("[INFO] Attempting to fetch row for site ID %v from supabase", siteId)
@@ -64,4 +69,37 @@ func (s SupabaseNormieClient) GetSiteRow(ctx context.Context, jwt, siteId string
 	log.Printf("[INFO] Successfully fetched row for site ID %v", siteId)
 
 	return &rows[0]
+}
+
+func (s SupabaseNormieClient) UpdateFields(ctx context.Context, jwt, siteId, sha string) bool {
+
+	body := UpdateFieldsBody{
+		DeployedSha:   sha,
+		LastUpdatedAt: "now", // special value understood by postgrest, me being lazy
+	}
+
+	log.Printf("[INFO] Updating fields of SITE row %v with request body: %+v", siteId, body)
+
+	var errorJson map[string]interface{}
+
+	err := requests.
+		URL(s.SupabaseUrl).
+		Path("/rest/v1/site").
+		Param("id", fmt.Sprintf("eq.%v", siteId)).
+		Header("apikey", s.SupabaseAnonKey).
+		Header("Authorization", jwt).
+		ContentType("application/json").
+		BodyJSON(&body).
+		ErrorJSON(&errorJson).
+		Patch().
+		Fetch(ctx)
+
+	if err != nil {
+		log.Printf("[ERROR] Unable to update fields of SITE row %v: %v, response: %+v", siteId, err, errorJson)
+		return false
+	}
+
+	log.Printf("[INFO] Successfully updated sha and last_updated for site %v, sha %v", siteId, sha)
+
+	return true
 }

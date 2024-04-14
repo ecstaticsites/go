@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"cbnr/client"
 	"cbnr/util"
 
 	"github.com/asim/git-http-backend/server"
@@ -70,9 +71,14 @@ var GitCmd = &cobra.Command{
 
 		log.Printf("[INFO] Setting up custom git-middlewarer client...")
 
-		mid := Middlewarer{
+		supaNormie := client.SupabaseNormieClient{
 			SupabaseUrl:     config["SUPABASE_URL"],
 			SupabaseAnonKey: config["SUPABASE_ANON_KEY"],
+		}
+
+		mid := Middlewarer{
+			SupaNormie: supaNormie,
+			ApiUrl:     "http://api.default:8080",
 		}
 
 		// ------------------------------------------------------------------------

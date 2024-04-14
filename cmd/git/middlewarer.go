@@ -10,12 +10,12 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/carlmjohnson/requests"
+	"cbnr/client"
 )
 
 type Middlewarer struct {
-	SupabaseUrl     string
-	SupabaseAnonKey string
+	SupaNormie client.SupabaseNormieClient
+	ApiUrl     string
 }
 
 type SiteConfig struct {
@@ -76,45 +76,22 @@ func (m Middlewarer) CreateGitHookMiddleware() func(http.Handler) http.Handler {
 
 			repoName := strings.Split(req.URL.Path, "/")[1]
 
-			// todo, replace all the below with a supabase_normie client call, sheesh
-
-			var config []SiteConfig
-
-			err := requests.
-				URL(m.SupabaseUrl).
-				Path("/rest/v1/site").
-				Param("select", "index_path,storage_token").
-				Param("id", fmt.Sprintf("eq.%s", repoName)).
-				Header("apikey", m.SupabaseAnonKey).
-				Header("Authorization", jwt).
-				ToJSON(&config).
-				Fetch(req.Context())
-
-			if err != nil {
-				http.Error(out, fmt.Sprintf("Error occurred querying sites from supabase, dying: %v", err), http.StatusInternalServerError)
+			row := m.SupaNormie.GetSiteRow(req.Context(), jwt, repoName)
+			if row == nil {
+				http.Error(out, "Unable to query Supabase for site row", http.StatusInternalServerError)
 				return
 			}
 
-			if len(config) == 0 {
-				http.Error(out, fmt.Sprintf("No result rows from supabase for site ID %v (possibly RLS unauthorized?)", repoName), http.StatusUnauthorized)
-				return
-			}
-
-			if len(config) > 1 {
-				http.Error(out, fmt.Sprintf("Too many rows from supabase, what do I do: %v", config), http.StatusInternalServerError)
-				return
-			}
-
-			log.Printf("site ID found for repo %s, config %s", repoName, config[0])
+			log.Printf("site ID found for repo %s, config %s", repoName, row)
 
 			hookValues := HookValues{
-				SiteId:        repoName,
-				SiteSubDir:    path.Dir(config[0].IndexPath),
-				StorageUrl:    "ftp://storage.bunnycdn.com:21/",
-				StorageName:   repoName, // we work hard so storage name == pull zone name == site ID
-				StorageToken:  config[0].StorageToken,
-				PurgeCacheUrl: "http://api.default:8080/purge", // todo, maybe shouldn't hardcode this
-				PurgeCacheJwt: jwt,
+				SiteId:       repoName,
+				SiteSubDir:   path.Dir(row.IndexPath),
+				StorageUrl:   "ftp://storage.bunnycdn.com:21/",
+				StorageName:  repoName, // we work hard so storage name == pull zone name == site ID
+				StorageToken: row.StorageToken,
+				ApiUrl:       fmt.Sprintf("%s/purge", m.ApiUrl),
+				ApiJwt:       jwt,
 			}
 
 			hookPath := fmt.Sprintf("/tmp/%s/.git/hooks/post-receive", repoName)

@@ -31,8 +31,9 @@ type AddHostnameRequest struct {
 	Hostname string `json:"hostname"`
 }
 
-type PurgeCacheRequest struct {
+type PostPushRequest struct {
 	SiteId string `json:"siteid"`
+	Sha    string `json:"sha"`
 }
 
 func (s Server) CreateSite(out http.ResponseWriter, req *http.Request) {
@@ -228,17 +229,25 @@ func (s Server) AddHostname(out http.ResponseWriter, req *http.Request) {
 	return
 }
 
-func (s Server) PurgeCache(out http.ResponseWriter, req *http.Request) {
+func (s Server) PostPush(out http.ResponseWriter, req *http.Request) {
 
 	// no need to validate here, impossible to get this far if JWT is invalid
 	jwt := req.Header.Get("Authorization")
 
-	var body PurgeCacheRequest
+	var body PostPushRequest
 
 	err := json.NewDecoder(req.Body).Decode(&body)
 	if err != nil {
 		log.Printf("[ERROR] Request body did not parse as expected: %v, body %v", err, req.Body)
-		http.Error(out, "Malformed input, just send JSON with a nickname field", http.StatusBadRequest)
+		http.Error(out, "Malformed input, just send JSON with siteid and sha", http.StatusBadRequest)
+		return
+	}
+
+	// todo -- validate that sha is not empty and looks like a real SHA
+
+	worked := s.SupaNormie.UpdateFields(req.Context(), jwt, body.SiteId, body.Sha)
+	if !worked {
+		http.Error(out, "Unable to update site row in Supabase", http.StatusInternalServerError)
 		return
 	}
 
@@ -248,8 +257,8 @@ func (s Server) PurgeCache(out http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	worked := s.BunnyAdmin.PurgeCache(req.Context(), row.PullZoneId)
-	if !worked {
+	worked2 := s.BunnyAdmin.PurgeCache(req.Context(), row.PullZoneId)
+	if !worked2 {
 		http.Error(out, "Unable to purge pull zone cache", http.StatusInternalServerError)
 		return
 	}

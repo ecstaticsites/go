@@ -1,13 +1,13 @@
 package git
 
 type HookValues struct {
-	SiteId        string
-	SiteSubDir    string
-	StorageUrl    string
-	StorageName   string
-	StorageToken  string
-	PurgeCacheUrl string
-	PurgeCacheJwt string
+	SiteId       string
+	SiteSubDir   string
+	StorageUrl   string
+	StorageName  string
+	StorageToken string
+	ApiUrl       string
+	ApiJwt       string
 }
 
 var HookTemplate = `#!/usr/bin/env bash
@@ -20,6 +20,7 @@ echo "you just pushed to {{.SiteId}}!"
 while read oldrev newrev refname
 do
   branch=$(git rev-parse --symbolic --abbrev-ref $refname)
+  newsha="$newrev"
 done
 
 echo "you just pushed to branch $branch!"
@@ -44,11 +45,9 @@ cd {{.SiteSubDir}}
 
 lftp -u {{.StorageName}},{{.StorageToken}} -e "mirror --reverse --parallel=4 --verbose --delete .; bye" {{.StorageUrl}}
 
-echo "all uploaded, now purging CDN cache..."
+echo "all uploaded, updating site row metadata and purging CDN cache..."
 
-curl --silent "{{.PurgeCacheUrl}}" -H "content-type: application/json" -H "Authorization: {{.PurgeCacheJwt}}" -d '{"siteid": "{{.SiteId}}"}'
-
-# todo, also need a curl here to supabase to update last_updated_at and deployed_sha
+curl --silent "{{.ApiUrl}}/postpush" -H "Authorization: {{.ApiJwt}}" --json "{\"siteid\": \"{{.SiteId}}\", \"sha\": \"$newsha\"}"
 
 echo "cache purged, now cleaning up local files..."
 
