@@ -103,6 +103,7 @@ func (s SupabaseAdminClient) AuthorizeHostname(ctx context.Context, userId, newH
 	return true
 }
 
+// todo - unclear why this needs the admin client, can service role bypass no-update trigger?
 func (s SupabaseAdminClient) AddHostnameToSiteRow(ctx context.Context, siteId, hostname string) bool {
 
 	body := AddHostnameToSiteRowBody{

@@ -51,6 +51,18 @@ func (m Middlewarer) CreateGitInitMiddleware() func(http.Handler) http.Handler {
 			// Print the output
 			log.Printf(string(stdout))
 
+			// need to explicitly allow pushing to the main branch... git stuff?
+			cmd2 := exec.Command("git", "-C", repoPath, "config", "receive.denyCurrentBranch", "updateInstead")
+			stdout2, err2 := cmd2.Output()
+
+			if err2 != nil {
+				log.Printf(err2.Error())
+				return
+			}
+
+			// Print the output
+			log.Printf("allowed pushing to branches OK [%s]", string(stdout2))
+
 			next.ServeHTTP(out, req)
 		})
 	}
