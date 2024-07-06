@@ -14,13 +14,11 @@ require (
 	github.com/influxdata/influxdb-client-go/v2 v2.12.3
 	github.com/lestrrat-go/jwx/v2 v2.0.11
 	github.com/mileusna/useragent v1.3.3
-	github.com/oschwald/geoip2-golang v1.9.0
 	github.com/prometheus/client_golang v1.17.0
 	github.com/slok/go-http-metrics v0.11.0
 	github.com/spf13/cobra v1.7.0
 	github.com/stretchr/testify v1.8.4
 	golang.org/x/exp v0.0.0-20230905200255-921286631fa9
-	gopkg.in/mcuadros/go-syslog.v2 v2.3.0
 	zgo.at/isbot v1.0.0
 )
 
@@ -39,7 +37,6 @@ require (
 	github.com/lestrrat-go/iter v1.0.2 // indirect
 	github.com/lestrrat-go/option v1.0.1 // indirect
 	github.com/matttproud/golang_protobuf_extensions/v2 v2.0.0 // indirect
-	github.com/oschwald/maxminddb-golang v1.11.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/client_model v0.5.0 // indirect

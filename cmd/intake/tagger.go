@@ -3,9 +3,9 @@ package intake
 import (
 	"fmt"
 	"log"
+	"net/url"
 	"strings"
 	"time"
-	"net/url"
 
 	"github.com/influxdata/influxdb-client-go/v2"
 	"github.com/influxdata/influxdb-client-go/v2/api/write"
@@ -20,9 +20,9 @@ import (
 // EnrichedLog is responsible for turning a BunnyLog into a point for influx
 // with all the necessary tags, timestamps, etc
 type EnrichedLog struct {
-	bunny BunnyLog
+	bunny     BunnyLog
 	userAgent useragent.UserAgent
-	refUrl *url.URL
+	refUrl    *url.URL
 }
 
 func Enrich(bunny BunnyLog) EnrichedLog {
@@ -31,9 +31,9 @@ func Enrich(bunny BunnyLog) EnrichedLog {
 		log.Printf("[WARN] Unable to parse referrer URL: %v", err)
 	}
 	return EnrichedLog{
-		bunny: bunny,
+		bunny:     bunny,
 		userAgent: useragent.Parse(bunny.UserAgent),
-		refUrl: refUrl,
+		refUrl:    refUrl,
 	}
 }
 
@@ -76,7 +76,7 @@ func (e EnrichedLog) StatusCategory() (string, string) {
 		log.Printf("Can't get status category from weird code: %v", e.bunny.Status)
 		return "statuscategory", "Unknown"
 	}
-	return "statuscategory", string(e.bunny.Status / 100) + "xx"
+	return "statuscategory", string(e.bunny.Status/100) + "xx"
 }
 
 func (e EnrichedLog) Path() (string, string) {

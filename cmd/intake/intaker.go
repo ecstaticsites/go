@@ -8,8 +8,8 @@ import (
 )
 
 type Intaker struct {
-	msgChannel chan []byte
-	influxWriter  api.WriteAPI
+	msgChannel   chan []byte
+	influxWriter api.WriteAPI
 }
 
 func (i Intaker) Consume() {
