@@ -1,7 +1,6 @@
 package intake
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -11,14 +10,12 @@ import (
 	"cbnr/util"
 
 	"github.com/influxdata/influxdb-client-go/v2"
-	"github.com/oschwald/geoip2-golang"
 	"github.com/spf13/cobra"
-	"gopkg.in/mcuadros/go-syslog.v2"
 )
 
 var IntakeCmd = &cobra.Command{
 	Use:   "intake",
-	Short: "intake - starts listenting for TCP or UDP syslog messages on a port",
+	Short: "intake - starts listenting for TCP syslog messages on a port",
 	Run: func(cmd *cobra.Command, args []string) {
 
 		log.Printf("STARTING")
@@ -27,35 +24,19 @@ var IntakeCmd = &cobra.Command{
 		done := make(chan os.Signal, 1)
 		signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
-		syslogUdpBool := false
-		_, err := util.GetEnvConfig("SYSLOG_LISTENER_UDP")
-		if err == nil {
-			// no error means this env var was set! So let's use UDP
-			syslogUdpBool = true
-		}
-
 		syslogPort, err := util.GetEnvConfig("SYSLOG_LISTENER_PORT")
 		if err != nil {
-			log.Fatalf("Unable to get syslog port from environment: %v", err)
+			log.Fatalf("Unable to get intake port from environment: %v", err)
 		}
 
 		// buffer for the messages from intake port, no max size I think
-		channel := make(syslog.LogPartsChannel)
-		handler := syslog.NewChannelHandler(channel)
+		messages := make(chan []byte)
 
-		server := syslog.NewServer()
-		server.SetFormat(syslog.RFC5424)
-		server.SetHandler(handler)
+		listen := Listener{port: syslogPort, msgChan: messages}
 
-		if syslogUdpBool {
-			server.ListenUDP(fmt.Sprintf("0.0.0.0:%s", syslogPort))
-		} else {
-			server.ListenTCP(fmt.Sprintf("0.0.0.0:%s", syslogPort))
-		}
+		go listen.Listen()
 
-		server.Boot()
-
-		log.Printf("SERVER BOOTED, LISTENING UDP? %v", syslogUdpBool)
+		log.Printf("SERVER BOOTED, LISTENING TCP ON PORT %v", syslogPort)
 
 		influxUrl, err := util.GetEnvConfig("INFLUX_URL")
 		if err != nil {
@@ -83,19 +64,7 @@ var IntakeCmd = &cobra.Command{
 
 		log.Printf("INFLUX CLIENT INITTED")
 
-		mmdbPath, err := util.GetEnvConfig("MMDB_PATH")
-		if err != nil {
-			log.Fatalf("Unable to get GeoIP DB path from environment: %v", err)
-		}
-
-		geoClient, err := geoip2.Open(mmdbPath)
-		if err != nil {
-			log.Fatalf("Could not create geoIP database: %v", err)
-		}
-
-		log.Printf("GEOLITE DATABASE OPENED")
-
-		intaker := Intaker{channel, influxWriter, geoClient}
+		intaker := Intaker{messages, influxWriter}
 
 		go intaker.Consume()
 
@@ -106,12 +75,12 @@ var IntakeCmd = &cobra.Command{
 
 		log.Printf("GOT SIGNAL TO DIE, cleaning up...")
 
-		err = server.Kill()
-		if err != nil {
-			log.Fatalf("Could not kill running syslog listener: %v", err)
-		}
+		// err = server.Kill()
+		// if err != nil {
+		// 	log.Fatalf("Could not kill running intak listener: %v", err)
+		// }
 
-		log.Printf("SYSLOG LISTENER KILLED, SLEEPING FOR 1 SECOND")
+		log.Printf("INTAKE LISTENER KILLED, SLEEPING FOR 1 SECOND")
 
 		// terrible? Yes, but I can figure out how to actually make sure the parser
 		// channel is empty later, here 1s is more than enough
@@ -123,9 +92,5 @@ var IntakeCmd = &cobra.Command{
 		influxClient.Close()
 
 		log.Printf("INFLUX WRITER FLUSHED AND CLOSED")
-
-		geoClient.Close()
-
-		log.Printf("GEO CLIENT CLOSED")
 	},
 }

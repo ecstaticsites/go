@@ -3,14 +3,13 @@ package intake
 import (
 	"fmt"
 	"log"
-	"net"
 	"strings"
 	"time"
+	"net/url"
 
 	"github.com/influxdata/influxdb-client-go/v2"
 	"github.com/influxdata/influxdb-client-go/v2/api/write"
 	"github.com/mileusna/useragent"
-	"github.com/oschwald/geoip2-golang"
 	"zgo.at/isbot"
 )
 
@@ -18,84 +17,80 @@ import (
 // right now it's KINDA "Unknown"
 // maybe empty str?
 
-// Geo is an interface over the parts of geoip2 we need
-// just set up this way so we can inject mocks in unit tests
-type Geo interface {
-	Country(net.IP) (*geoip2.Country, error)
-}
-
-// Tagger is responsible for turning a BunnyLog into a point for influx
+// EnrichedLog is responsible for turning a BunnyLog into a point for influx
 // with all the necessary tags, timestamps, etc
-type Tagger struct {
-	geoClient Geo
+type EnrichedLog struct {
+	bunny BunnyLog
+	userAgent useragent.UserAgent
+	refUrl *url.URL
 }
 
-func (t Tagger) Device(bunny BunnyLog) (string, string) {
-	ua := useragent.Parse(bunny.UserAgent)
-	if ua.Mobile {
+func Enrich(bunny BunnyLog) EnrichedLog {
+	refUrl, err := url.Parse(bunny.Referer)
+	if err != nil {
+		log.Printf("[WARN] Unable to parse referrer URL: %v", err)
+	}
+	return EnrichedLog{
+		bunny: bunny,
+		userAgent: useragent.Parse(bunny.UserAgent),
+		refUrl: refUrl,
+	}
+}
+
+func (e EnrichedLog) Device() (string, string) {
+	if e.userAgent.Mobile {
 		return "device", "Mobile"
-	} else if ua.Tablet {
+	} else if e.userAgent.Tablet {
 		return "device", "Tablet"
-	} else if ua.Desktop {
+	} else if e.userAgent.Desktop {
 		return "device", "Desktop"
 	} else {
 		return "device", "Unknown"
 	}
 }
 
-func (t Tagger) Browser(bunny BunnyLog) (string, string) {
-	ua := useragent.Parse(bunny.UserAgent)
-	if ua.Name == "-" {
+func (e EnrichedLog) Browser() (string, string) {
+	if e.userAgent.Name == "-" {
 		return "browser", "Unknown"
 	}
-	return "browser", ua.Name
+	return "browser", e.userAgent.Name
 }
 
-func (t Tagger) Os(bunny BunnyLog) (string, string) {
-	ua := useragent.Parse(bunny.UserAgent)
-	if ua.OS == "" {
+func (e EnrichedLog) Os() (string, string) {
+	if e.userAgent.OS == "" {
 		return "os", "Unknown"
 	}
-	return "os", ua.OS
+	return "os", e.userAgent.OS
 }
 
-func (t Tagger) Country(bunny BunnyLog) (string, string) {
-	record, err := t.geoClient.Country(bunny.RemoteIp)
-	if err != nil {
-		log.Printf("Unable to get country for IP %v: %v", bunny.RemoteIp, err)
-		return "country", "Unknown"
-	}
-	if record.Country.Names["en"] == "" {
-		log.Printf("Country came back blank for IP %v", bunny.RemoteIp)
-		return "country", "Unknown"
-	}
-	return "country", record.Country.Names["en"]
+func (e EnrichedLog) Country() (string, string) {
+	return "country", e.bunny.Country
 }
 
-func (t Tagger) StatusCode(bunny BunnyLog) (string, string) {
-	return "statuscode", bunny.StatusCode
+func (e EnrichedLog) StatusCode() (string, string) {
+	return "statuscode", string(e.bunny.Status)
 }
 
-func (t Tagger) StatusCategory(bunny BunnyLog) (string, string) {
-	if len(bunny.StatusCode) != 3 {
-		log.Printf("Can't get status category from weird code: %v", bunny.StatusCode)
+func (e EnrichedLog) StatusCategory() (string, string) {
+	if e.bunny.Status < 100 {
+		log.Printf("Can't get status category from weird code: %v", e.bunny.Status)
 		return "statuscategory", "Unknown"
 	}
-	return "statuscategory", string(bunny.StatusCode[0]) + "xx"
+	return "statuscategory", string(e.bunny.Status / 100) + "xx"
 }
 
-func (t Tagger) Path(bunny BunnyLog) (string, string) {
-	return "path", bunny.Url.Path
+func (e EnrichedLog) Path() (string, string) {
+	return "path", e.bunny.PathAndQuery
 }
 
-func (t Tagger) Referrer(bunny BunnyLog) (string, string) {
-	return "", ""
+func (e EnrichedLog) Referrer() (string, string) {
+	return "referrer", e.refUrl.Host
 }
 
-func (t Tagger) FileType(bunny BunnyLog) (string, string) {
+func (e EnrichedLog) FileType() (string, string) {
 
-	slashIndex := strings.LastIndex(bunny.Url.Path, "/")
-	filename := bunny.Url.Path[(slashIndex + 1):]
+	slashIndex := strings.LastIndex(e.bunny.PathAndQuery, "/")
+	filename := e.bunny.PathAndQuery[(slashIndex + 1):]
 
 	if filename == "" {
 		return "filetype", "Page"
@@ -144,58 +139,58 @@ func (t Tagger) FileType(bunny BunnyLog) (string, string) {
 	}
 }
 
-func (t Tagger) IsProbablyBot(bunny BunnyLog) (string, string) {
+func (e EnrichedLog) IsProbablyBot() (string, string) {
 	// similar to isbot's "Bot" implementation, but skips the "does the header
 	// indicate this is a prefetch" check since we ain't got no headers
 	BotNoHeader := func() isbot.Result {
-		i := isbot.UserAgent(bunny.UserAgent)
+		i := isbot.UserAgent(e.bunny.UserAgent)
 		if i > 0 {
 			return i
 		}
 
-		return isbot.IPRange(fmt.Sprintf("%s", bunny.RemoteIp))
+		return isbot.IPRange(fmt.Sprintf("%s", e.bunny.RemoteIp))
 	}
 
 	res := BotNoHeader()
 	return "isprobablybot", fmt.Sprintf("%v", isbot.Is(res))
 }
 
-func (t Tagger) Tags(bunny BunnyLog) map[string]string {
+func (e EnrichedLog) Tags() map[string]string {
 
-	tagFuncSlice := []func(bunny BunnyLog) (string, string){
-		t.Device,
-		t.Browser,
-		t.Os,
-		t.Country,
-		t.StatusCode,
-		t.StatusCategory,
-		t.Path,
-		t.Referrer,
-		t.FileType,
-		t.IsProbablyBot,
+	tagFuncSlice := []func() (string, string){
+		e.Device,
+		e.Browser,
+		e.Os,
+		e.Country,
+		e.StatusCode,
+		e.StatusCategory,
+		e.Path,
+		e.Referrer,
+		e.FileType,
+		e.IsProbablyBot,
 	}
 
 	tags := map[string]string{}
 	for _, f := range tagFuncSlice {
-		name, val := f(bunny)
+		name, val := f()
 		tags[name] = val
 	}
 
 	return tags
 }
 
-func (t Tagger) Point(bunny BunnyLog) *write.Point {
+func (e EnrichedLog) Point() *write.Point {
 
-	tags := t.Tags(bunny)
+	tags := e.Tags()
 
 	return influxdb2.NewPoint(
 		// metric name
-		bunny.Url.Host,
+		e.bunny.Host,
 		// tags
 		tags,
 		// fields
 		map[string]interface{}{"hits": 1},
 		// ts
-		time.UnixMilli(bunny.Timestamp),
+		time.UnixMilli(e.bunny.Timestamp),
 	)
 }

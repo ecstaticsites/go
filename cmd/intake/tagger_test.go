@@ -5,15 +5,8 @@ import (
 	"net"
 	"testing"
 
-	"github.com/oschwald/geoip2-golang"
 	"github.com/stretchr/testify/assert"
 )
-
-type MockGeo struct{}
-
-func (m MockGeo) Country(net.IP) (*geoip2.Country, error) {
-	return nil, fmt.Errorf("Not implemented")
-}
 
 func TestNotBot(t *testing.T) {
 
