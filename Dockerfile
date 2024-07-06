@@ -11,8 +11,6 @@ RUN update-ca-certificates
 ARG VERSION=0.47.6
 RUN curl https://raw.githubusercontent.com/stepchowfun/toast/main/install.sh -LSfs | sh
 
-COPY misc/GeoLite2-Country.mmdb .
-
 COPY out/cbnr /usr/bin/cbnr
 
 # need to use entrypoint from base image, it's what starts docker

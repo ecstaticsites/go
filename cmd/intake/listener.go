@@ -43,25 +43,24 @@ func readFromConnection(conn net.Conn, msgChan chan []byte) {
 
 	for {
 
-		garbage, err := reader.ReadSlice(byte('{'))
+		// throw away the "headers" of the syslog entry, which we don't care about
+		_, err := reader.ReadSlice(byte('{'))
 		if err != nil {
-			log.Printf("could not read: %v", err)
+			log.Printf("[ERROR] Could not read bytes from TCP connection: %v", err)
 			break
 		}
 
-		log.Printf("garbage: %s", garbage)
-
-		goodstuff, err := reader.ReadSlice(byte('}'))
+		// parse out the JSON blob in the body of the entry, SUPER niavely
+		jsonString, err := reader.ReadSlice(byte('}'))
 		if err != nil {
-			log.Printf("could not read: %v", err)
+			log.Printf("[ERROR] Could not read bytes from TCP connection: %v", err)
 			break
 		}
 
-		goodstuff = append([]byte{'{'}, goodstuff...)
-
-		msgChan <- goodstuff
+		jsonString = append([]byte{'{'}, jsonString...)
+		msgChan <- jsonString
 	}
 
 	conn.Close()
-	log.Printf("closed the conn")
+	log.Printf("[INFO] Closed the TCP connection due to the above")
 }

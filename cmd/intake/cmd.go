@@ -26,7 +26,7 @@ var IntakeCmd = &cobra.Command{
 
 		syslogPort, err := util.GetEnvConfig("SYSLOG_LISTENER_PORT")
 		if err != nil {
-			log.Fatalf("Unable to get intake port from environment: %v", err)
+			log.Fatalf("[ERROR] Unable to get intake port from environment: %v", err)
 		}
 
 		// buffer for the messages from intake port, no max size I think
@@ -36,16 +36,16 @@ var IntakeCmd = &cobra.Command{
 
 		go listen.Listen()
 
-		log.Printf("SERVER BOOTED, LISTENING TCP ON PORT %v", syslogPort)
+		log.Printf("[INFO] SERVER BOOTED, LISTENING TCP ON PORT %v", syslogPort)
 
 		influxUrl, err := util.GetEnvConfig("INFLUX_URL")
 		if err != nil {
-			log.Fatalf("Unable to get influx location from environment: %v", err)
+			log.Fatalf("[ERROR] Unable to get influx location from environment: %v", err)
 		}
 
 		influxDbName, err := util.GetEnvConfig("INFLUX_DB_NAME")
 		if err != nil {
-			log.Fatalf("Unable to get influx DB name from environment: %v", err)
+			log.Fatalf("[ERROR] Unable to get influx DB name from environment: %v", err)
 		}
 
 		// using the NON-BLOCKING client
@@ -62,25 +62,25 @@ var IntakeCmd = &cobra.Command{
 		// Second parameter is database/retention-policy (no slash => default retention)
 		influxWriter := influxClient.WriteAPI("", influxDbName)
 
-		log.Printf("INFLUX CLIENT INITTED")
+		log.Printf("[INFO] INFLUX CLIENT INITTED")
 
 		intaker := Intaker{messages, influxWriter}
 
 		go intaker.Consume()
 
-		log.Printf("PARSER GOROUTINE STARTED, waiting to die...")
+		log.Printf("[INFO] PARSER GOROUTINE STARTED, waiting to die...")
 
 		// block here until we get some sort of interrupt or kill
 		<-done
 
-		log.Printf("GOT SIGNAL TO DIE, cleaning up...")
+		log.Printf("[INFO] GOT SIGNAL TO DIE, cleaning up...")
 
 		// err = server.Kill()
 		// if err != nil {
 		// 	log.Fatalf("Could not kill running intak listener: %v", err)
 		// }
 
-		log.Printf("INTAKE LISTENER KILLED, SLEEPING FOR 1 SECOND")
+		log.Printf("[INFO] INTAKE LISTENER KILLED, SLEEPING FOR 1 SECOND")
 
 		// terrible? Yes, but I can figure out how to actually make sure the parser
 		// channel is empty later, here 1s is more than enough
@@ -91,6 +91,6 @@ var IntakeCmd = &cobra.Command{
 		// Ensures background processes finishes
 		influxClient.Close()
 
-		log.Printf("INFLUX WRITER FLUSHED AND CLOSED")
+		log.Printf("[INFO] INFLUX WRITER FLUSHED AND CLOSED")
 	},
 }

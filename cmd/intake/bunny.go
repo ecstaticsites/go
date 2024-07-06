@@ -35,7 +35,7 @@ func stringToBunnyLog(input []byte) (BunnyLog, error) {
 
 	err := json.Unmarshal(input, &bunnylog)
 	if err != nil {
-		return bunnylog, fmt.Errorf("Could not parse TCP body: %v", err)
+		return bunnylog, fmt.Errorf("Could not parse syslog body: %v", err)
 	}
 
 	return bunnylog, nil
