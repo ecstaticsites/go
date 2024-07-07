@@ -1,19 +1,19 @@
 package intake
 
 import (
+	"context"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
-	"fmt"
-	"context"
 
 	"cbnr/util"
 
+	ch "github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/influxdata/influxdb-client-go/v2"
 	"github.com/spf13/cobra"
-	ch "github.com/ClickHouse/clickhouse-go/v2"
 )
 
 var IntakeCmd = &cobra.Command{
@@ -72,16 +72,16 @@ var IntakeCmd = &cobra.Command{
 
 		clickConn, err := ch.Open(
 			&ch.Options{
-			  Addr: []string{fmt.Sprintf("%s:%v", "clickhouse.default", "9000")},
-			  Auth: ch.Auth{
-			    Database: "default",
-			    //Username: env.Username,
-			    //Password: env.Password,
-			  },
+				Addr: []string{fmt.Sprintf("%s:%v", "clickhouse.default", "9000")},
+				Auth: ch.Auth{
+					Database: "default",
+					//Username: env.Username,
+					//Password: env.Password,
+				},
 			},
 		)
 		if err != nil {
-		  log.Fatalf("[ERROR] Could not create clickhouse connection: %v\n", err)
+			log.Fatalf("[ERROR] Could not create clickhouse connection: %v\n", err)
 		}
 
 		log.Printf("[INFO] CLICKHOUSE CLIENT INITTED")
