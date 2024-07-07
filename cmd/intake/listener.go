@@ -41,6 +41,10 @@ func readFromConnection(conn net.Conn, msgChan chan []byte) {
 
 	reader := bufio.NewReader(conn)
 
+	// note -- we don't call conn.Read() below!
+	// that blocks until it gets an EOF, which bunny CDN never sends
+	// (it leaves the conn open to use for more access logs)
+	// that's why we deliberately scan for braces here
 	for {
 
 		// throw away the "headers" of the syslog entry, which we don't care about

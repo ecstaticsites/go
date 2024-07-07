@@ -6,11 +6,14 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+	"fmt"
+	"context"
 
 	"cbnr/util"
 
 	"github.com/influxdata/influxdb-client-go/v2"
 	"github.com/spf13/cobra"
+	ch "github.com/ClickHouse/clickhouse-go/v2"
 )
 
 var IntakeCmd = &cobra.Command{
@@ -19,6 +22,9 @@ var IntakeCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 
 		log.Printf("STARTING")
+
+		// for cancelling
+		ctx := context.Background()
 
 		// set up channel to handle graceful shutdown
 		done := make(chan os.Signal, 1)
@@ -64,9 +70,25 @@ var IntakeCmd = &cobra.Command{
 
 		log.Printf("[INFO] INFLUX CLIENT INITTED")
 
-		intaker := Intaker{messages, influxWriter}
+		clickConn, err := ch.Open(
+			&ch.Options{
+			  Addr: []string{fmt.Sprintf("%s:%v", "clickhouse.default", "9000")},
+			  Auth: ch.Auth{
+			    Database: "default",
+			    //Username: env.Username,
+			    //Password: env.Password,
+			  },
+			},
+		)
+		if err != nil {
+		  log.Fatalf("[ERROR] Could not create clickhouse connection: %v\n", err)
+		}
 
-		go intaker.Consume()
+		log.Printf("[INFO] CLICKHOUSE CLIENT INITTED")
+
+		intaker := Intaker{messages, influxWriter, clickConn}
+
+		go intaker.Consume(ctx)
 
 		log.Printf("[INFO] PARSER GOROUTINE STARTED, waiting to die...")
 

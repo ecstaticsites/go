@@ -5,10 +5,7 @@ import (
 	"log"
 	"net/url"
 	"strings"
-	"time"
 
-	"github.com/influxdata/influxdb-client-go/v2"
-	"github.com/influxdata/influxdb-client-go/v2/api/write"
 	"github.com/mileusna/useragent"
 	"zgo.at/isbot"
 )
@@ -20,177 +17,151 @@ import (
 // EnrichedLog is responsible for turning a BunnyLog into a point for influx
 // with all the necessary tags, timestamps, etc
 type EnrichedLog struct {
-	bunny     BunnyLog
-	userAgent useragent.UserAgent
-	refUrl    *url.URL
+  StatusCode      int
+  StatusCategory  string
+  Timestamp       int64
+  BytesSent       int
+  RemoteIp        string
+  Host            string
+  Path            string
+  Referrer        string
+  Device          string
+  Browser         string
+  Os              string
+  Country         string
+  FileType        string
+  IsProbablyBot   bool
 }
 
 func Enrich(bunny BunnyLog) EnrichedLog {
+	ua := useragent.Parse(bunny.UserAgent)
+	return EnrichedLog{
+		StatusCode: bunny.Status,
+		StatusCategory: StatusCategory(bunny),
+		// does not work
+		Timestamp: bunny.Timestamp,
+		BytesSent: bunny.BytesSent,
+		RemoteIp: bunny.RemoteIp,
+		Host: bunny.Host,
+		Path: bunny.PathAndQuery,
+		Referrer: Referrer(bunny),
+		Device: Device(ua),
+		Browser: Browser(ua),
+		Os: Os(ua),
+		Country: bunny.Country,
+		FileType: FileType(bunny),
+		IsProbablyBot: IsProbablyBot(bunny),
+	}
+}
+
+func Device(ua useragent.UserAgent) string {
+	if ua.Mobile {
+		return "Mobile"
+	} else if ua.Tablet {
+		return "Tablet"
+	} else if ua.Desktop {
+		return "Desktop"
+	} else {
+		return "Unknown"
+	}
+}
+
+func Browser(ua useragent.UserAgent) string {
+	if ua.Name == "-" {
+		return "Unknown"
+	}
+	return ua.Name
+}
+
+func Os(ua useragent.UserAgent) string {
+	if ua.OS == "" {
+		return "Unknown"
+	}
+	return ua.OS
+}
+
+func StatusCategory(bunny BunnyLog) string {
+	if bunny.Status < 100 {
+		log.Printf("Can't get status category from weird code: %v", bunny.Status)
+		return "Unknown"
+	}
+	// does not work
+	return string(bunny.Status/100) + "xx"
+}
+
+func Referrer(bunny BunnyLog) string {
 	refUrl, err := url.Parse(bunny.Referer)
 	if err != nil {
 		log.Printf("[WARN] Unable to parse referrer URL: %v", err)
+		return "Unknown"
 	}
-	return EnrichedLog{
-		bunny:     bunny,
-		userAgent: useragent.Parse(bunny.UserAgent),
-		refUrl:    refUrl,
-	}
+	return refUrl.Host
 }
 
-func (e EnrichedLog) Device() (string, string) {
-	if e.userAgent.Mobile {
-		return "device", "Mobile"
-	} else if e.userAgent.Tablet {
-		return "device", "Tablet"
-	} else if e.userAgent.Desktop {
-		return "device", "Desktop"
-	} else {
-		return "device", "Unknown"
-	}
-}
+func FileType(bunny BunnyLog) string {
 
-func (e EnrichedLog) Browser() (string, string) {
-	if e.userAgent.Name == "-" {
-		return "browser", "Unknown"
-	}
-	return "browser", e.userAgent.Name
-}
-
-func (e EnrichedLog) Os() (string, string) {
-	if e.userAgent.OS == "" {
-		return "os", "Unknown"
-	}
-	return "os", e.userAgent.OS
-}
-
-func (e EnrichedLog) Country() (string, string) {
-	return "country", e.bunny.Country
-}
-
-func (e EnrichedLog) StatusCode() (string, string) {
-	return "statuscode", string(e.bunny.Status)
-}
-
-func (e EnrichedLog) StatusCategory() (string, string) {
-	if e.bunny.Status < 100 {
-		log.Printf("Can't get status category from weird code: %v", e.bunny.Status)
-		return "statuscategory", "Unknown"
-	}
-	return "statuscategory", string(e.bunny.Status/100) + "xx"
-}
-
-func (e EnrichedLog) Path() (string, string) {
-	return "path", e.bunny.PathAndQuery
-}
-
-func (e EnrichedLog) Referrer() (string, string) {
-	return "referrer", e.refUrl.Host
-}
-
-func (e EnrichedLog) FileType() (string, string) {
-
-	slashIndex := strings.LastIndex(e.bunny.PathAndQuery, "/")
-	filename := e.bunny.PathAndQuery[(slashIndex + 1):]
+	slashIndex := strings.LastIndex(bunny.PathAndQuery, "/")
+	filename := bunny.PathAndQuery[(slashIndex + 1):]
 
 	if filename == "" {
-		return "filetype", "Page"
+		return "Page"
 	}
 
 	dotIndex := strings.LastIndex(filename, ".")
 
 	if dotIndex == -1 {
-		return "filetype", "Page"
+		return "Page"
 	}
 
 	switch t := filename[(dotIndex + 1):]; t {
 
 	case "html":
-		return "filetype", "Page"
+		return "Page"
 
 	case "css":
-		return "filetype", "Stylesheet"
+		return "Stylesheet"
 
 	case "js":
-		return "filetype", "Javascript"
+		return "Javascript"
 
 	case "img", "jpg", "jpeg", "png", "ico", "gif", "svg", "heic":
-		return "filetype", "Image"
+		return "Image"
 
 	case "ttf", "otf", "woff", "woff2":
-		return "filetype", "Font"
+		return "Font"
 
 	case "txt", "csv", "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx":
-		return "filetype", "Document"
+		return "Document"
 
 	case "zip", "gz", "rar", "iso", "tar", "lzma", "bz2", "7z", "z", "tgz":
-		return "filetype", "Archive"
+		return "Archive"
 
 	case "mp3", "m4a", "wav", "ogg", "flac", "midi", "aac", "wma":
-		return "filetype", "Audio"
+		return "Audio"
 
 	case "mpg", "mpeg", "avi", "mp4", "flv", "h264", "mov", "mk4", "mkv", "m4v":
-		return "filetype", "Video"
+		return "Video"
 
 	case "xml":
-		return "filetype", "RSS Feed"
+		return "RSS Feed"
 
 	default:
-		return "filetype", "Unknown"
+		return "Unknown"
 	}
 }
 
-func (e EnrichedLog) IsProbablyBot() (string, string) {
+func IsProbablyBot(bunny BunnyLog) bool {
 	// similar to isbot's "Bot" implementation, but skips the "does the header
 	// indicate this is a prefetch" check since we ain't got no headers
 	BotNoHeader := func() isbot.Result {
-		i := isbot.UserAgent(e.bunny.UserAgent)
+		i := isbot.UserAgent(bunny.UserAgent)
 		if i > 0 {
 			return i
 		}
 
-		return isbot.IPRange(fmt.Sprintf("%s", e.bunny.RemoteIp))
+		return isbot.IPRange(fmt.Sprintf("%s", bunny.RemoteIp))
 	}
 
 	res := BotNoHeader()
-	return "isprobablybot", fmt.Sprintf("%v", isbot.Is(res))
-}
-
-func (e EnrichedLog) Tags() map[string]string {
-
-	tagFuncSlice := []func() (string, string){
-		e.Device,
-		e.Browser,
-		e.Os,
-		e.Country,
-		e.StatusCode,
-		e.StatusCategory,
-		e.Path,
-		e.Referrer,
-		e.FileType,
-		e.IsProbablyBot,
-	}
-
-	tags := map[string]string{}
-	for _, f := range tagFuncSlice {
-		name, val := f()
-		tags[name] = val
-	}
-
-	return tags
-}
-
-func (e EnrichedLog) Point() *write.Point {
-
-	tags := e.Tags()
-
-	return influxdb2.NewPoint(
-		// metric name
-		e.bunny.Host,
-		// tags
-		tags,
-		// fields
-		map[string]interface{}{"hits": 1},
-		// ts
-		time.UnixMilli(e.bunny.Timestamp),
-	)
+	return isbot.Is(res)
 }
