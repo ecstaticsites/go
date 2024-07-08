@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"encoding/json"
 
 	ch "github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	"golang.org/x/exp/slices"
@@ -16,12 +17,17 @@ type Query struct {
 	clickConn ch.Conn
 }
 
-// for use with CH .Select()
 type QueryResult struct {
 	WindowStart time.Time
 	GroupKey    string
 	Hits        uint64
 	Bytes       uint64
+}
+
+type Point struct {
+	Time  int64 `json:"Time"`
+	Hits  uint64 `json:"Hits"`
+	Bytes uint64 `json:"Bytes"`
 }
 
 // below should be const, but golang knows better
@@ -87,7 +93,7 @@ func (q Query) HandleQuery(out http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	queryStr := q.BuildClickhouseQuery(hostname, includeBots, groupby, bucketby, timezone, unixStart, unixEnd)
+	queryStr := BuildClickhouseQuery(hostname, includeBots, groupby, bucketby, timezone, unixStart, unixEnd)
 	// if err != nil {
 	// 	http.Error(out, fmt.Sprintf("Unable to create valid query for influxdb: %w", err), http.StatusBadRequest)
 	// 	return
@@ -104,12 +110,21 @@ func (q Query) HandleQuery(out http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	log.Printf("Result from clickhouse: %+v", result)
+	timeserieses := QueryResultToPoints(result)
+
+	// TODO, can/should probably use go-chi render for all this?
+	out.Header().Set("Content-Type", "application/json")
+
+	err = json.NewEncoder(out).Encode(timeserieses)
+	if err != nil {
+		http.Error(out, "Unable to serialize JSON output for HTTP", http.StatusInternalServerError)
+		return
+	}
 
 	return
 }
 
-func (q Query) BuildClickhouseQuery(hostname, includeBots, groupby, bucketby, timezone string, unixStart, unixEnd int) string {
+func BuildClickhouseQuery(hostname, includeBots, groupby, bucketby, timezone string, unixStart, unixEnd int) string {
 
 	var query strings.Builder
 
@@ -154,6 +169,25 @@ func (q Query) BuildClickhouseQuery(hostname, includeBots, groupby, bucketby, ti
 	query.WriteString(fmt.Sprintf("ORDER BY WindowStart ASC WITH FILL STEP %s(1)", interval))
 
 	return query.String()
+}
+
+func QueryResultToPoints(rows []QueryResult) map[string][]Point {
+
+	timeserieses := map[string][]Point{}
+
+	// we don't need to sort anything since it's already ordered by WindowStart
+	// thus, we just need to group into sub-arrays based on GroupKey
+	for _, row := range rows {
+
+		if _, ok := timeserieses[row.GroupKey]; !ok {
+			timeserieses[row.GroupKey] = make([]Point, 0)
+		}
+
+		point := Point{row.WindowStart.UnixMilli(), row.Hits, row.Bytes}
+		timeserieses[row.GroupKey] = append(timeserieses[row.GroupKey], point)
+	}
+
+	return timeserieses
 }
 
 // func (i InfluxClient) BuildInfluxQuery() (string, error) {
