@@ -6,22 +6,30 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
-	"github.com/carlmjohnson/requests"
 	"golang.org/x/exp/slices"
+	ch "github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 )
 
-type InfluxClient struct {
-	InfluxUrl    string
-	InfluxDbName string
+type Query struct {
+	clickConn  ch.Conn
+}
+
+// for use with CH .Select()
+type QueryResult struct {
+	WindowStart time.Time
+	GroupKey string
+	Hits uint64
+	Bytes uint64
 }
 
 // below should be const, but golang knows better
-var VALIDGROUPBYS = []string{"", "browser", "os", "device", "country", "path", "statuscode"}
-var VALIDBUCKETBYS = []string{"", "1h", "1d"}
+var VALIDGROUPBYS = []string{"", "browser", "os", "device", "country", "path", "status"}
+var VALIDBUCKETBYS = []string{"hour", "day", "week", "month"}
 var VALIDBOTS = []string{"true", "false"}
 
-func (i InfluxClient) HandleQuery(out http.ResponseWriter, req *http.Request) {
+func (q Query) HandleQuery(out http.ResponseWriter, req *http.Request) {
 
 	// todo, this is gross. there must be a better way of defining and validating API spec
 
@@ -57,7 +65,7 @@ func (i InfluxClient) HandleQuery(out http.ResponseWriter, req *http.Request) {
 
 	includeBots := req.URL.Query().Get("bots")
 	if !slices.Contains(VALIDBOTS, includeBots) {
-		http.Error(out, fmt.Sprintf("Invalid groupby %s (try one of %v)", includeBots, VALIDBOTS), http.StatusBadRequest)
+		http.Error(out, fmt.Sprintf("Invalid bots %s (try one of %v)", includeBots, VALIDBOTS), http.StatusBadRequest)
 	}
 
 	groupby := req.URL.Query().Get("groupby")
@@ -70,87 +78,97 @@ func (i InfluxClient) HandleQuery(out http.ResponseWriter, req *http.Request) {
 		http.Error(out, fmt.Sprintf("Invalid bucketby %s (try one of %v)", bucketby, VALIDBUCKETBYS), http.StatusBadRequest)
 	}
 
-	tz := req.URL.Query().Get("tz")
+	timezone := req.URL.Query().Get("tz")
 	if false {
 		// todo, some actual validation here, hashtag sql injection
-		http.Error(out, fmt.Sprintf("Invalid timezone %s", tz), http.StatusBadRequest)
+		http.Error(out, fmt.Sprintf("Invalid timezone %s", timezone), http.StatusBadRequest)
 	}
 
-	queryStr, err := i.BuildInfluxQuery(hostname, includeBots, groupby, bucketby, tz, unixStart, unixEnd)
+	queryStr := q.BuildClickhouseQuery(hostname, includeBots, groupby, bucketby, timezone, unixStart, unixEnd)
+	// if err != nil {
+	// 	http.Error(out, fmt.Sprintf("Unable to create valid query for influxdb: %w", err), http.StatusBadRequest)
+	// 	return
+	// }
+
+	log.Printf("Query to clickhouse: %s", queryStr)
+
+	var result []QueryResult
+	err = q.clickConn.Select(req.Context(), &result, queryStr)
+
 	if err != nil {
-		http.Error(out, fmt.Sprintf("Unable to create valid query for influxdb: %w", err), http.StatusBadRequest)
+		log.Printf("Query was unsuccessful: %v", err)
+		http.Error(out, "Query was unsuccessful", http.StatusInternalServerError)
 		return
 	}
 
-	log.Printf("Query to influxdb: %s", queryStr)
-
-	err = requests.
-		URL(i.InfluxUrl).
-		Path("/query").
-		Param("db", i.InfluxDbName).
-		Param("q", queryStr).
-		Param("epoch", "s").
-		ToWriter(out).
-		Fetch(req.Context())
-
-	if err != nil {
-		http.Error(out, fmt.Sprintf("Query was unsuccessful: %w", err), http.StatusInternalServerError)
-		return
-	}
+	log.Printf("Result from clickhouse: %+v", result)
 
 	return
 }
 
-func (i InfluxClient) BuildInfluxQuery(hostname, includeBots, groupby, bucketby, tz string, unixStart, unixEnd int) (string, error) {
+func (q Query) BuildClickhouseQuery(hostname, includeBots, groupby, bucketby, timezone string, unixStart, unixEnd int) string {
 
 	var query strings.Builder
 
-	query.WriteString("select sum(hits)")
+	query.WriteString("SELECT ")
 
-	query.WriteString(" ")
-	query.WriteString(fmt.Sprintf("from \"%s\"", hostname))
-
-	// following two filters are shortcuts. Will need something more flexible later
-	query.WriteString(" ")
-	query.WriteString(fmt.Sprintf("where filetype = 'Page'"))
-
-	query.WriteString(" ")
-	query.WriteString(fmt.Sprintf("and statuscategory = '2xx'"))
-
-	// if includeBots is true, then we want everything -- so no filter
-	// todo -- isprobablybot is a string ?? should fix that
-	if includeBots == "false" {
-		query.WriteString(" ")
-		query.WriteString(fmt.Sprintf("and isprobablybot = 'false'"))
+	timeFunctionMap := map[string]string{
+		"hour": "toStartOfHour",
+		"day": "toStartOfDay",
+		"week": "toStartOfWeek",
+		"month": "toStartOfMonth",
 	}
 
-	query.WriteString(" ")
-	query.WriteString(fmt.Sprintf("and time >= %ds and time < %ds", unixStart, unixEnd))
+	// the toDateTime is necessary here so we end up with times formatted per the client's TZ
+	timeFn := timeFunctionMap[bucketby]
+	query.WriteString(fmt.Sprintf("%s(toDateTime(Timestamp, '%s')) as WindowStart, ", timeFn, timezone))
 
-	if groupby != "" || bucketby != "" {
-		query.WriteString(" ")
-		query.WriteString("group by")
+	groupKeyMap := map[string]string{
+		"os": "Os",
+		"device": "Device",
+		"browser": "Browser",
+		"status": "StatusCategory",
 	}
 
-	if groupby != "" {
-		query.WriteString(" ")
-		query.WriteString(groupby)
+	groupKey := groupKeyMap[groupby]
+	query.WriteString(fmt.Sprintf("%s as GroupKey, ", groupKey))
+
+	// a bit silly, but we only want to count PAGE loads as "hits"
+	query.WriteString("COUNT(CASE WHEN FileType = 'Page' THEN 1 ELSE 0 END) as Hits, ")
+	// but count the bytes as total because otherwise would be nonsense
+	query.WriteString("SUM(BytesSent) as Bytes ")
+
+	query.WriteString("FROM accesslog ")
+
+	query.WriteString(fmt.Sprintf("WHERE Host = '%s' ", hostname))
+
+	// the toDateTime might not be necessary here since we're supplying epoch ms, but shrug
+	query.WriteString(fmt.Sprintf("AND Timestamp >= toDateTime(%d, '%s') ", unixStart, timezone))
+	query.WriteString(fmt.Sprintf("AND Timestamp < toDateTime(%d, '%s') ", unixEnd, timezone))
+
+	query.WriteString("GROUP BY WindowStart, GroupKey ")
+
+	intervalFunctionMap := map[string]string{
+		"hour": "toIntervalHour",
+		"day": "toIntervalDay",
+		"week": "toIntervalWeek",
+		"month": "toIntervalMonth",
 	}
 
-	if groupby != "" && bucketby != "" {
-		query.WriteString(",")
-	}
+	interval := intervalFunctionMap[bucketby]
+	query.WriteString(fmt.Sprintf("ORDER BY WindowStart ASC WITH FILL STEP %s(1)", interval))
 
-	if bucketby != "" {
-		query.WriteString(fmt.Sprintf("time(%s)", bucketby))
-		query.WriteString(" ")
-		query.WriteString("fill(0)")
-	}
-
-	if tz != "" {
-		query.WriteString(" ")
-		query.WriteString(fmt.Sprintf("tz('%s')", tz))
-	}
-
-	return query.String(), nil
+	return query.String()
 }
+
+// func (i InfluxClient) BuildInfluxQuery() (string, error) {
+
+// 	// if includeBots is true, then we want everything -- so no filter
+// 	// todo -- isprobablybot is a string ?? should fix that
+// 	if includeBots == "false" {
+// 		query.WriteString(" ")
+// 		query.WriteString(fmt.Sprintf("and isprobablybot = 'false'"))
+// 	}
+
+// 	return query.String(), nil
+// }

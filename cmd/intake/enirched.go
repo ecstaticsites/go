@@ -39,7 +39,7 @@ func Enrich(bunny BunnyLog) EnrichedLog {
 		StatusCode:     bunny.Status,
 		StatusCategory: StatusCategory(bunny),
 		// does not work
-		Timestamp:     bunny.Timestamp,
+		Timestamp:     bunny.Timestamp / 1000,
 		BytesSent:     bunny.BytesSent,
 		RemoteIp:      bunny.RemoteIp,
 		Host:          bunny.Host,

@@ -23,13 +23,10 @@ tasks:
     cache: false
     input_paths:
     - out/cbnr
-    - misc/GeoLite2-Country.mmdb
     environment:
       SYSLOG_LISTENER_PORT: "517"
-      SYSLOG_LISTENER_UDP: "yup"
-      INFLUX_URL: "http://host.docker.internal:8086"
-      INFLUX_DB_NAME: "testdb"
-      MMDB_PATH: "/scratch/misc/GeoLite2-Country.mmdb"
+      CLICKHOUSE_URL: "host.docker.internal:9000"
+      CLICKHOUSE_DATABASE: "default"
     ports:
     - 517:517
     command: |
@@ -44,8 +41,8 @@ tasks:
       HTTP_LISTENER_PORT: "8080"
       METRICS_LISTENER_PORT: "8081"
       # this is the how to hit host's 127.0.0.1 inside a container
-      INFLUX_URL: "http://host.docker.internal:8086"
-      INFLUX_DB_NAME: "testdb"
+      CLICKHOUSE_URL: "host.docker.internal:9000"
+      CLICKHOUSE_DATABASE: "default"
       # would love to use wildcard here, but disallowed with credentials
       CORS_ALLOWED_ORIGIN: "http://127.0.0.1:5173"
       JWT_SECRET: "supersecretplaceholder"

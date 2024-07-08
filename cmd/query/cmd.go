@@ -19,6 +19,8 @@ import (
 	"github.com/go-chi/jwtauth/v5"
 	"github.com/spf13/cobra"
 
+	ch "github.com/ClickHouse/clickhouse-go/v2"
+
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	promHttpMetrics "github.com/slok/go-http-metrics/metrics/prometheus"
 	promHttpMiddleware "github.com/slok/go-http-metrics/middleware"
@@ -52,8 +54,8 @@ var QueryCmd = &cobra.Command{
 		configNames := []string{
 			"HTTP_LISTENER_PORT",
 			"METRICS_LISTENER_PORT",
-			"INFLUX_URL",
-			"INFLUX_DB_NAME",
+			"CLICKHOUSE_URL",
+			"CLICKHOUSE_DATABASE",
 			"CORS_ALLOWED_ORIGIN",
 			"PERMISSIVE_MODE",
 			"JWT_SECRET",
@@ -86,12 +88,17 @@ var QueryCmd = &cobra.Command{
 
 		// ------------------------------------------------------------------------
 
-		log.Printf("[INFO] Setting up influx client...")
+		log.Printf("[INFO] Creating ClickHouse DB connection and consumer...")
 
-		i := InfluxClient{
-			InfluxUrl:    config["INFLUX_URL"],
-			InfluxDbName: config["INFLUX_DB_NAME"],
+		clickhouseConn, err := ch.Open(&ch.Options{
+			Addr: []string{config["CLICKHOUSE_URL"]},
+			Auth: ch.Auth{Database: config["CLICKHOUSE_DATABASE"]},
+		})
+		if err != nil {
+			log.Fatalf("[ERROR] Could not create clickhouse connection: %v\n", err)
 		}
+
+		q := Query{clickhouseConn}
 
 		// ------------------------------------------------------------------------
 
@@ -109,7 +116,7 @@ var QueryCmd = &cobra.Command{
 		r.Use(util.CheckHostnameMiddleware(config["PERMISSIVE_MODE"] == "true"))
 		r.Use(promHttpStd.HandlerProvider("", promMiddleware))
 
-		r.Get("/query", i.HandleQuery)
+		r.Get("/query", q.HandleQuery)
 
 		// ------------------------------------------------------------------------
 

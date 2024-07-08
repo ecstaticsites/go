@@ -5,13 +5,13 @@ go 1.21
 toolchain go1.21.1
 
 require (
+	github.com/ClickHouse/clickhouse-go/v2 v2.26.0
 	github.com/DmitriyVTitov/size v1.5.0
 	github.com/asim/git-http-backend v0.3.0
 	github.com/carlmjohnson/requests v0.23.4
 	github.com/go-chi/chi/v5 v5.0.10
 	github.com/go-chi/cors v1.2.1
 	github.com/go-chi/jwtauth/v5 v5.1.1
-	github.com/influxdata/influxdb-client-go/v2 v2.12.3
 	github.com/lestrrat-go/jwx/v2 v2.0.11
 	github.com/mileusna/useragent v1.3.3
 	github.com/prometheus/client_golang v1.17.0
@@ -24,19 +24,16 @@ require (
 
 require (
 	github.com/ClickHouse/ch-go v0.61.5 // indirect
-	github.com/ClickHouse/clickhouse-go/v2 v2.26.0 // indirect
 	github.com/andybalholm/brotli v1.1.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.2.0 // indirect
-	github.com/deepmap/oapi-codegen v1.8.2 // indirect
 	github.com/go-faster/city v1.0.1 // indirect
 	github.com/go-faster/errors v0.7.1 // indirect
 	github.com/goccy/go-json v0.10.2 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
-	github.com/influxdata/line-protocol v0.0.0-20200327222509-2487e7298839 // indirect
 	github.com/klauspost/compress v1.17.7 // indirect
 	github.com/lestrrat-go/blackmagic v1.0.1 // indirect
 	github.com/lestrrat-go/httpcc v1.0.1 // indirect
