@@ -38,7 +38,7 @@ func Enrich(bunny BunnyLog) EnrichedLog {
 	return EnrichedLog{
 		StatusCode:     bunny.Status,
 		StatusCategory: StatusCategory(bunny),
-		// does not work
+		// bunny comes in epoch ms, CH wants epoch sec
 		Timestamp:     bunny.Timestamp / 1000,
 		BytesSent:     bunny.BytesSent,
 		RemoteIp:      bunny.RemoteIp,
@@ -85,8 +85,7 @@ func StatusCategory(bunny BunnyLog) string {
 		log.Printf("Can't get status category from weird code: %v", bunny.Status)
 		return "Unknown"
 	}
-	// does not work
-	return string(bunny.Status/100) + "xx"
+	return fmt.Sprint(bunny.Status/100) + "xx"
 }
 
 func Referrer(bunny BunnyLog) string {

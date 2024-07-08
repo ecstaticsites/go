@@ -66,22 +66,25 @@ func (q Query) HandleQuery(out http.ResponseWriter, req *http.Request) {
 	includeBots := req.URL.Query().Get("bots")
 	if !slices.Contains(VALIDBOTS, includeBots) {
 		http.Error(out, fmt.Sprintf("Invalid bots %s (try one of %v)", includeBots, VALIDBOTS), http.StatusBadRequest)
+		return
 	}
 
 	groupby := req.URL.Query().Get("groupby")
 	if !slices.Contains(VALIDGROUPBYS, groupby) {
 		http.Error(out, fmt.Sprintf("Invalid groupby %s (try one of %v)", groupby, VALIDGROUPBYS), http.StatusBadRequest)
+		return
 	}
 
 	bucketby := req.URL.Query().Get("bucketby")
 	if !slices.Contains(VALIDBUCKETBYS, bucketby) {
 		http.Error(out, fmt.Sprintf("Invalid bucketby %s (try one of %v)", bucketby, VALIDBUCKETBYS), http.StatusBadRequest)
+		return
 	}
 
 	timezone := req.URL.Query().Get("tz")
-	if false {
-		// todo, some actual validation here, hashtag sql injection
+	if (len(timezone) < 8) || (len(timezone) > 30) || (!strings.ContainsRune(timezone, '/')) {
 		http.Error(out, fmt.Sprintf("Invalid timezone %s", timezone), http.StatusBadRequest)
+		return
 	}
 
 	queryStr := q.BuildClickhouseQuery(hostname, includeBots, groupby, bucketby, timezone, unixStart, unixEnd)
