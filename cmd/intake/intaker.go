@@ -5,8 +5,8 @@ import (
 	"log"
 	"time"
 
-	"github.com/DmitriyVTitov/size"
 	ch "github.com/ClickHouse/clickhouse-go/v2/lib/driver"
+	"github.com/DmitriyVTitov/size"
 )
 
 type Intaker struct {

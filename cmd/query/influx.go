@@ -8,24 +8,24 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/exp/slices"
 	ch "github.com/ClickHouse/clickhouse-go/v2/lib/driver"
+	"golang.org/x/exp/slices"
 )
 
 type Query struct {
-	clickConn  ch.Conn
+	clickConn ch.Conn
 }
 
 // for use with CH .Select()
 type QueryResult struct {
 	WindowStart time.Time
-	GroupKey string
-	Hits uint64
-	Bytes uint64
+	GroupKey    string
+	Hits        uint64
+	Bytes       uint64
 }
 
 // below should be const, but golang knows better
-var VALIDGROUPBYS = []string{"", "browser", "os", "device", "country", "path", "status"}
+var VALIDGROUPBYS = []string{"Browser", "Os", "Device", "Country", "Path", "StatusCategory"}
 var VALIDBUCKETBYS = []string{"hour", "day", "week", "month"}
 var VALIDBOTS = []string{"true", "false"}
 
@@ -113,9 +113,9 @@ func (q Query) BuildClickhouseQuery(hostname, includeBots, groupby, bucketby, ti
 	query.WriteString("SELECT ")
 
 	timeFunctionMap := map[string]string{
-		"hour": "toStartOfHour",
-		"day": "toStartOfDay",
-		"week": "toStartOfWeek",
+		"hour":  "toStartOfHour",
+		"day":   "toStartOfDay",
+		"week":  "toStartOfWeek",
 		"month": "toStartOfMonth",
 	}
 
@@ -123,15 +123,7 @@ func (q Query) BuildClickhouseQuery(hostname, includeBots, groupby, bucketby, ti
 	timeFn := timeFunctionMap[bucketby]
 	query.WriteString(fmt.Sprintf("%s(toDateTime(Timestamp, '%s')) as WindowStart, ", timeFn, timezone))
 
-	groupKeyMap := map[string]string{
-		"os": "Os",
-		"device": "Device",
-		"browser": "Browser",
-		"status": "StatusCategory",
-	}
-
-	groupKey := groupKeyMap[groupby]
-	query.WriteString(fmt.Sprintf("%s as GroupKey, ", groupKey))
+	query.WriteString(fmt.Sprintf("%s as GroupKey, ", groupby))
 
 	// a bit silly, but we only want to count PAGE loads as "hits"
 	query.WriteString("COUNT(CASE WHEN FileType = 'Page' THEN 1 ELSE 0 END) as Hits, ")
@@ -149,9 +141,9 @@ func (q Query) BuildClickhouseQuery(hostname, includeBots, groupby, bucketby, ti
 	query.WriteString("GROUP BY WindowStart, GroupKey ")
 
 	intervalFunctionMap := map[string]string{
-		"hour": "toIntervalHour",
-		"day": "toIntervalDay",
-		"week": "toIntervalWeek",
+		"hour":  "toIntervalHour",
+		"day":   "toIntervalDay",
+		"week":  "toIntervalWeek",
 		"month": "toIntervalMonth",
 	}
 
