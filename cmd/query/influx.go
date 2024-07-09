@@ -183,7 +183,7 @@ func QueryResultToPoints(rows []QueryResult) map[string][]Point {
 			timeserieses[row.GroupKey] = make([]Point, 0)
 		}
 
-		point := Point{row.WindowStart.UnixMilli(), row.Hits, row.Bytes}
+		point := Point{row.WindowStart.Unix(), row.Hits, row.Bytes}
 		timeserieses[row.GroupKey] = append(timeserieses[row.GroupKey], point)
 	}
 
