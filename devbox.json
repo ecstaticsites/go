@@ -1,0 +1,35 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jetify-com/devbox/0.12.0/.schema/devbox.schema.json",
+  "packages": [
+    "go@1.21",
+    "lftp@latest",
+  ],
+  "env": {
+    "SYSLOG_LISTENER_PORT": "517",
+    "CLICKHOUSE_URL": "127.0.0.1:9000",
+    "CLICKHOUSE_DATABASE": "default",
+    // need to skip JWT validation in dev, no secret key
+    "PERMISSIVE_MODE": "true",
+    "HTTP_LISTENER_PORT": "8080",
+    "METRICS_LISTENER_PORT": "8081",
+    // would love to use wildcard here, but disallowed with credentials
+    "CORS_ALLOWED_ORIGIN": "http://127.0.0.1:5173",
+    "JWT_SECRET": "supersecretplaceholder",
+    "SUPABASE_URL": "https://aaa.supabase.co",
+    "SUPABASE_ANON_KEY": "supersecretplaceholder",
+    "SUPABASE_SERVICE_KEY": "supersecretplaceholder",
+    "BUNNY_URL": "https://bbb.bunny.net",
+    "BUNNY_API_KEY": "supersecretplaceholder",
+  },
+  "shell": {
+    "init_hook": [
+      "echo 'Welcome to devbox!' > /dev/null",
+    ],
+    "scripts": {
+      "build": ["go build -v -o out/cbnr"],
+      "intake": ["out/cbnr intake"],
+      "query": ["out/cbnr query"],
+      "api": ["out/cbnr api"],
+    }
+  }
+}
