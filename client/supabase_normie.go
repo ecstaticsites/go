@@ -28,9 +28,13 @@ type SiteRow struct {
 	Hostname       string `json:"hostname"`
 }
 
-type UpdateFieldsBody struct {
+type UpdateDeployedShaBody struct {
 	DeployedSha   string `json:"deployed_sha"`
 	LastUpdatedAt string `json:"last_updated_at"`
+}
+
+type AddHostnameToSiteRowBody struct {
+	CustomHostname string `json:"custom_hostname"`
 }
 
 func (s SupabaseNormieClient) GetSiteRow(ctx context.Context, jwt, siteId string) *SiteRow {
@@ -71,9 +75,9 @@ func (s SupabaseNormieClient) GetSiteRow(ctx context.Context, jwt, siteId string
 	return &rows[0]
 }
 
-func (s SupabaseNormieClient) UpdateFields(ctx context.Context, jwt, siteId, sha string) bool {
+func (s SupabaseNormieClient) UpdateDeployedSha(ctx context.Context, jwt, siteId, sha string) bool {
 
-	body := UpdateFieldsBody{
+	body := UpdateDeployedShaBody{
 		DeployedSha:   sha,
 		LastUpdatedAt: "now", // special value understood by postgrest, me being lazy
 	}
@@ -100,6 +104,38 @@ func (s SupabaseNormieClient) UpdateFields(ctx context.Context, jwt, siteId, sha
 	}
 
 	log.Printf("[INFO] Successfully updated sha and last_updated for site %v, sha %v", siteId, sha)
+
+	return true
+}
+
+func (s SupabaseNormieClient) AddHostnameToSiteRow(ctx context.Context, jwt, siteId, hostname string) bool {
+
+	body := AddHostnameToSiteRowBody{
+		CustomHostname: hostname,
+	}
+
+	log.Printf("[INFO] Adding hostname to SITE row %v with request body: %+v", siteId, body)
+
+	var errorJson map[string]interface{}
+
+	err := requests.
+		URL(s.SupabaseUrl).
+		Path("/rest/v1/site").
+		Param("id", fmt.Sprintf("eq.%v", siteId)).
+		Header("apikey", s.SupabaseAnonKey).
+		Header("Authorization", jwt).
+		ContentType("application/json").
+		BodyJSON(&body).
+		ErrorJSON(&errorJson).
+		Patch().
+		Fetch(ctx)
+
+	if err != nil {
+		log.Printf("[ERROR] Unable to add hostname to SITE row %v: %v, response: %+v", siteId, err, errorJson)
+		return false
+	}
+
+	log.Printf("[INFO] Successfully added new hostname for site %v, hostname %v", siteId, hostname)
 
 	return true
 }

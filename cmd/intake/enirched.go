@@ -17,11 +17,11 @@ import (
 // EnrichedLog is responsible for turning a BunnyLog into a point for influx
 // with all the necessary tags, timestamps, etc
 type EnrichedLog struct {
-	StatusCode     int
-	StatusCategory string
+	PullZoneId     int
 	Timestamp      int64
 	BytesSent      int
-	RemoteIp       string
+	StatusCode     int
+	StatusCategory string
 	Host           string
 	Path           string
 	Referrer       string
@@ -36,21 +36,21 @@ type EnrichedLog struct {
 func Enrich(bunny BunnyLog) EnrichedLog {
 	ua := useragent.Parse(bunny.UserAgent)
 	return EnrichedLog{
+		PullZoneId: bunny.PullZoneId,
+		// bunny comes  in epoch ms, CH wants epoch sec
+		Timestamp:      bunny.Timestamp / 1000,
+		BytesSent:      bunny.BytesSent,
 		StatusCode:     bunny.Status,
 		StatusCategory: StatusCategory(bunny),
-		// bunny comes in epoch ms, CH wants epoch sec
-		Timestamp:     bunny.Timestamp / 1000,
-		BytesSent:     bunny.BytesSent,
-		RemoteIp:      bunny.RemoteIp,
-		Host:          bunny.Host,
-		Path:          bunny.PathAndQuery,
-		Referrer:      Referrer(bunny),
-		Device:        Device(ua),
-		Browser:       Browser(ua),
-		Os:            Os(ua),
-		Country:       bunny.Country,
-		FileType:      FileType(bunny),
-		IsProbablyBot: IsProbablyBot(bunny),
+		Host:           bunny.Host,
+		Path:           bunny.PathAndQuery,
+		Referrer:       Referrer(bunny),
+		Device:         Device(ua),
+		Browser:        Browser(ua),
+		Os:             Os(ua),
+		Country:        bunny.Country,
+		FileType:       FileType(bunny),
+		IsProbablyBot:  IsProbablyBot(bunny),
 	}
 }
 

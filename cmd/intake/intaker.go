@@ -68,11 +68,11 @@ func (i Intaker) Consume(ctx context.Context) {
 func addToBatch(batch ch.Batch, enriched EnrichedLog) error {
 	// must match the order in the schema exactly
 	return batch.Append(
-		enriched.StatusCode,
-		enriched.StatusCategory,
+		enriched.PullZoneId,
 		enriched.Timestamp,
 		enriched.BytesSent,
-		enriched.RemoteIp,
+		enriched.StatusCode,
+		enriched.StatusCategory,
 		enriched.Host,
 		enriched.Path,
 		enriched.Referrer,

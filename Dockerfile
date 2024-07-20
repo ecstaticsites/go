@@ -1,36 +1,26 @@
-############################
-# STAGE 0 - Build
-############################
+FROM ubuntu:24.04
 
-# https://hub.docker.com/r/jetpackio/devbox/tags
-FROM jetpackio/devbox:0.12.0
+WORKDIR /src
 
-WORKDIR /code
+# Install some system dependencies
+RUN apt-get update && apt-get install -y xz-utils curl git ca-certificates lftp
+RUN update-ca-certificates
 
-USER root:root
-RUN mkdir -p /code && chown ${DEVBOX_USER}:${DEVBOX_USER} /code
-USER ${DEVBOX_USER}:${DEVBOX_USER}
-COPY --chown=${DEVBOX_USER}:${DEVBOX_USER} devbox.json devbox.json
-COPY --chown=${DEVBOX_USER}:${DEVBOX_USER} devbox.lock devbox.lock
+# This is the official way to install it :(
+RUN curl -fsSL https://get.jetify.com/devbox -o install-devbox.sh
+RUN chmod +x install-devbox.sh
+RUN ./install-devbox.sh -f
 
 # Do just dependencies first, to benefit from layer caching
+COPY devbox.json devbox.json
+COPY devbox.lock devbox.lock
 
+# This also installs nix, takes a while, todo, do this earlier in Dockerfile
 RUN devbox install
 
 # Now the rest!
-
-COPY --chown=${DEVBOX_USER}:${DEVBOX_USER} . .
-
+COPY . .
 RUN devbox run build
 
-############################
-# STAGE 1 - Run
-############################
-
-# https://hub.docker.com/_/ubuntu/tags
-FROM ubuntu:22.04
-
-RUN apt-get update && apt-get install -y git ca-certificates lftp
-RUN update-ca-certificates
-
-COPY --from=0 /code/out/cbnr /usr/bin/cbnr
+# And copy the command to somewhere we can find it
+RUN mv /src/out/cbnr /usr/bin/cbnr

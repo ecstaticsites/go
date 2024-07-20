@@ -1,13 +1,13 @@
 package query
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
-	"encoding/json"
 
 	ch "github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	"golang.org/x/exp/slices"
@@ -25,7 +25,7 @@ type QueryResult struct {
 }
 
 type Point struct {
-	Time  int64 `json:"Time"`
+	Time  int64  `json:"Time"`
 	Hits  uint64 `json:"Hits"`
 	Bytes uint64 `json:"Bytes"`
 }
@@ -39,9 +39,9 @@ func (q Query) HandleQuery(out http.ResponseWriter, req *http.Request) {
 
 	// todo, this is gross. there must be a better way of defining and validating API spec
 
-	hostname := req.URL.Query().Get("hostname")
-	if hostname == "" {
-		http.Error(out, "Query param 'hostname' not provided, quitting", http.StatusBadRequest)
+	zoneId := req.URL.Query().Get("zoneid")
+	if zoneId == "" {
+		http.Error(out, "Query param 'zoneid' not provided, quitting", http.StatusBadRequest)
 		return
 	}
 
@@ -93,7 +93,7 @@ func (q Query) HandleQuery(out http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	queryStr := BuildClickhouseQuery(hostname, includeBots, groupby, bucketby, timezone, unixStart, unixEnd)
+	queryStr := BuildClickhouseQuery(zoneId, includeBots, groupby, bucketby, timezone, unixStart, unixEnd)
 	// if err != nil {
 	// 	http.Error(out, fmt.Sprintf("Unable to create valid query for influxdb: %w", err), http.StatusBadRequest)
 	// 	return
@@ -124,7 +124,7 @@ func (q Query) HandleQuery(out http.ResponseWriter, req *http.Request) {
 	return
 }
 
-func BuildClickhouseQuery(hostname, includeBots, groupby, bucketby, timezone string, unixStart, unixEnd int) string {
+func BuildClickhouseQuery(zoneId, includeBots, groupby, bucketby, timezone string, unixStart, unixEnd int) string {
 
 	var query strings.Builder
 
@@ -150,7 +150,7 @@ func BuildClickhouseQuery(hostname, includeBots, groupby, bucketby, timezone str
 
 	query.WriteString("FROM accesslog ")
 
-	query.WriteString(fmt.Sprintf("WHERE Host = '%s' ", hostname))
+	query.WriteString(fmt.Sprintf("WHERE PullZoneId = '%s' ", zoneId))
 
 	// the toDateTime might not be necessary here since we're supplying epoch ms, but shrug
 	query.WriteString(fmt.Sprintf("AND Timestamp >= toDateTime(%d, '%s') ", unixStart, timezone))

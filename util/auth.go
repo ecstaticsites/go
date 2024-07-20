@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 
 	"github.com/carlmjohnson/requests"
 	"github.com/go-chi/jwtauth/v5"
@@ -106,9 +107,9 @@ func CheckJwtMiddleware(permissive, basic bool) func(next http.Handler) http.Han
 	}
 }
 
-// gets the desired hostname from the query params, then checks the JWT metadata
-// to make sure the user is allowed to query that hostname
-func CheckHostnameMiddleware(permissive bool) func(next http.Handler) http.Handler {
+// gets the desired pull zone ID from the query params, then checks the JWT metadata
+// to make sure the user is allowed to query that zone
+func CheckZoneIdMiddleware(permissive bool) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(out http.ResponseWriter, req *http.Request) {
 
@@ -121,25 +122,31 @@ func CheckHostnameMiddleware(permissive bool) func(next http.Handler) http.Handl
 				// already checked for errors etc in the previous CheckJwtMiddleware
 				_, claims, _ := jwtauth.FromContext(req.Context())
 
-				hostname := req.URL.Query().Get("hostname")
-				if hostname == "" {
-					http.Error(out, "Query param 'hostname' not provided, quitting", http.StatusBadRequest)
+				zoneId := req.URL.Query().Get("zoneid")
+				if zoneId == "" {
+					http.Error(out, "Query param 'zoneid' not provided, quitting", http.StatusBadRequest)
 					return
 				}
 
-				existingHostnames, err := GetHostnamesFromClaims(claims)
+				zoneIdInt, err := strconv.Atoi(zoneId)
 				if err != nil {
-					http.Error(out, fmt.Sprintf("Unable to get hostnames from JWT claims: %v", err), http.StatusBadRequest)
+					http.Error(out, "Query param 'zoneid' could not be parsed as int, quitting", http.StatusBadRequest)
 					return
 				}
 
-				if !slices.Contains(existingHostnames, hostname) {
-					http.Error(out, fmt.Sprintf("User not authorized to query hostname %v", hostname), http.StatusUnauthorized)
+				existingZoneIds, err := GetZoneIdsFromClaims(claims)
+				if err != nil {
+					http.Error(out, fmt.Sprintf("Unable to get zone IDs from JWT claims: %v", err), http.StatusBadRequest)
+					return
+				}
+
+				if !slices.Contains(existingZoneIds, zoneIdInt) {
+					http.Error(out, fmt.Sprintf("User not authorized to query zone ID %v", zoneIdInt), http.StatusUnauthorized)
 					return
 				}
 			}
 
-			// user is allowed to query this hostname, pass it through
+			// user is allowed to query this pull zone, pass it through
 			next.ServeHTTP(out, req)
 			return
 		})
@@ -173,7 +180,7 @@ func CheckReadOnlyMiddleware(permissive bool) func(next http.Handler) http.Handl
 				}
 			}
 
-			// user is allowed to query this hostname, pass it through
+			// user account is not readonly, pass it through
 			next.ServeHTTP(out, req)
 			return
 		})

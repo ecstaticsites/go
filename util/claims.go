@@ -2,11 +2,12 @@ package util
 
 import (
 	"fmt"
+	"math"
 )
 
 // lots of parsing and checking in order to get the list of authorized
-// hostnames from a claims dict in a JWT, that's this
-func GetHostnamesFromClaims(claims map[string]interface{}) ([]string, error) {
+// pull zone IDs from a claims dict in a JWT, that's this
+func GetZoneIdsFromClaims(claims map[string]interface{}) ([]int, error) {
 
 	metadata, found1 := claims["app_metadata"]
 	if !found1 {
@@ -18,27 +19,29 @@ func GetHostnamesFromClaims(claims map[string]interface{}) ([]string, error) {
 		return nil, fmt.Errorf("Claims 'app_metadata' could not be parsed as map")
 	}
 
-	hostnames, found2 := metadataMap["hostnames"]
+	zones, found2 := metadataMap["zones"]
 	if !found2 {
-		// return early with no error -- just means they've created no sites yet
+		// return early with no error -- just means they've created no zones yet
 		return nil, nil
 	}
 
-	hostnamesArray, ok2 := hostnames.([]interface{})
+	zonesArray, ok2 := zones.([]interface{})
 	if !ok2 {
-		return nil, fmt.Errorf("Metadata 'hostnames' field could not be parsed as array")
+		return nil, fmt.Errorf("Metadata 'zones' field could not be parsed as array")
 	}
 
-	hostnamesStringArray := []string{}
-	for _, name := range hostnamesArray {
-		nameString, ok3 := name.(string)
+	zoneIntArray := []int{}
+	for _, zone := range zonesArray {
+		// not sure why this comes in in float-form? It's just an int
+		zoneFloat, ok3 := zone.(float64)
 		if !ok3 {
-			return nil, fmt.Errorf("Item in metadata 'hostnames' array could not be parsed as string")
+			return nil, fmt.Errorf("Item in metadata 'zones' array could not be parsed")
 		}
-		hostnamesStringArray = append(hostnamesStringArray, nameString)
+		zoneInt := int(math.Round(zoneFloat))
+		zoneIntArray = append(zoneIntArray, zoneInt)
 	}
 
-	return hostnamesStringArray, nil
+	return zoneIntArray, nil
 }
 
 // similar to the above, but gets the straightforward "readonly" field
