@@ -30,6 +30,7 @@
       "intake": ["out/cbnr intake"],
       "query": ["out/cbnr query"],
       "api": ["out/cbnr api"],
+      "git": ["out/cbnr git"],
     }
   }
 }

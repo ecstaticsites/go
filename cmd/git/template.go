@@ -32,11 +32,13 @@ cd ..
 # https://stackoverflow.com/questions/10507942
 GIT_DIR=".git" git checkout "$branch"
 
-if [ -f "toast.yml" ]; then
-  echo "file toast.yml found, attempting to build site..."
-  toast build
+if [ -f "devbox.json" ]; then
+  echo "file devbox.json found, attempting to build site..."
+  devbox install
+  devbox run install
+  devbox run build
 else
-  echo "file toast.yml not found, assuming site is raw HTML..."
+  echo "file devbox.json not found, assuming site is raw HTML..."
 fi
 
 echo "uploading files to CDN..."
