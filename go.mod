@@ -1,4 +1,4 @@
-module cbnr
+module ecstatic
 
 go 1.21
 

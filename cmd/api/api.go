@@ -5,8 +5,8 @@ import (
 	"log"
 	"net/http"
 
-	"cbnr/client"
-	"cbnr/util"
+	"ecstatic/client"
+	"ecstatic/util"
 
 	"github.com/go-chi/jwtauth/v5"
 )

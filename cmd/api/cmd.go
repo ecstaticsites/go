@@ -11,8 +11,8 @@ import (
 	"syscall"
 	"time"
 
-	"cbnr/client"
-	"cbnr/util"
+	"ecstatic/client"
+	"ecstatic/util"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"

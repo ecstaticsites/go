@@ -10,7 +10,7 @@ import (
 	"strings"
 	"text/template"
 
-	"cbnr/client"
+	"ecstatic/client"
 )
 
 type Middlewarer struct {

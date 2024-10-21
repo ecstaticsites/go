@@ -23,4 +23,4 @@ COPY . .
 RUN devbox run build
 
 # And copy the command to somewhere we can find it
-RUN mv /src/out/cbnr /usr/bin/cbnr
+RUN mv /src/out/ecstatic /usr/bin/ecstatic

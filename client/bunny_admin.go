@@ -151,7 +151,7 @@ func (b BunnyAdminClient) CreatePullZone(ctx context.Context, siteId string, sto
 		LoggingIPAnonymizationEnabled: true,
 		LogAnonymizationType:          0, // one-octet
 		LogForwardingEnabled:          true,
-		LogForwardingHostname:         "intake.cbnr.xyz",
+		LogForwardingHostname:         "intake.ecstaticsites.org",
 		LogForwardingPort:             517,
 		LogForwardingProtocol:         0, // UDP
 		UseStaleWhileUpdating:         true,

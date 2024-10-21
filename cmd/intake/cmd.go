@@ -9,7 +9,7 @@ import (
 	"syscall"
 	"time"
 
-	"cbnr/util"
+	"ecstatic/util"
 
 	ch "github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/spf13/cobra"

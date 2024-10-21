@@ -1,5 +1,5 @@
-# Cloudy But No Rain - Go
+# Ecstatic Sites - Go
 
-The source for the Golang services that run CBNR.
+The source for the Golang services that run Ecstatic.
 
-To find out more, see the [CBNR landing page](https://www.cbnr.xyz/) or the [documentation](https://docs.cbnr.xyz/)!
+To find out more, see the [Ecstatic landing page](https://www.ecstaticsites.org/) or the [documentation](https://docs.ecstaticsites.org/)!

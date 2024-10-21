@@ -11,8 +11,8 @@ import (
 	"syscall"
 	"time"
 
-	"cbnr/client"
-	"cbnr/util"
+	"ecstatic/client"
+	"ecstatic/util"
 
 	"github.com/asim/git-http-backend/server"
 	"github.com/go-chi/chi/v5"
