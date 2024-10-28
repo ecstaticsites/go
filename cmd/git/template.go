@@ -50,7 +50,7 @@ curl -XDELETE --silent --output /dev/null -H 'AccessKey: {{.StorageToken}}' '{{.
 
 uploadfile() {
 	echo "Uploading to CDN file ${1}..."
-  curl -XPUT --silent --output /dev/null -H 'AccessKey: {{.StorageToken}}' --data-binary "${1}" "{{.StorageUrl}}/{{.StorageName}}/${1}"
+  curl -XPUT --silent --output /dev/null -H 'AccessKey: {{.StorageToken}}' --data-binary "@${1}" "{{.StorageUrl}}/{{.StorageName}}/${1}"
 }
 
 # make the above function available to spawned shells
