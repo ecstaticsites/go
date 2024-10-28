@@ -13,9 +13,9 @@ type HookValues struct {
 var HookTemplate = `#!/usr/bin/env bash
 set -euo pipefail
 
-echo "hi..."
+echo "Welcome to Ecstatic's git interface..."
 
-echo "you just pushed to {{.SiteId}}!"
+echo "You just pushed to site ID {{.SiteId}}..."
 
 while read oldrev newrev refname
 do
@@ -23,37 +23,49 @@ do
   newsha="$newrev"
 done
 
-echo "you just pushed to branch $branch!"
+echo "You just pushed to branch ${branch}...."
 
 git config core.bare false
 
 cd ..
 
 # https://stackoverflow.com/questions/10507942
-GIT_DIR=".git" git checkout "$branch"
+GIT_DIR=".git" git checkout "${branch}"
 
 if [ -f "devbox.json" ]; then
-  echo "file devbox.json found, attempting to build site..."
+  echo "File devbox.json found, attempting to build site..."
   devbox install
   devbox run install
   devbox run build
 else
-  echo "file devbox.json not found, assuming site is raw HTML..."
+  echo "File devbox.json not found, assuming site is raw HTML..."
 fi
-
-echo "uploading files to CDN..."
 
 cd {{.SiteSubDir}}
 
-lftp -u {{.StorageName}},{{.StorageToken}} -e "mirror --reverse --parallel=4 --verbose --delete .; bye" {{.StorageUrl}}
+echo "Deleting all existing files from CDN..."
 
-echo "all uploaded, updating site row metadata and purging CDN cache..."
+# ignore errors here; this often returns 400 "directory might not be empty" but it worked
+curl -XDELETE --silent --output /dev/null -H 'AccessKey: {{.StorageToken}}' '{{.StorageUrl}}/{{.StorageName}}/' || true
 
-curl --silent "{{.PostPushUrl}}" -H "Authorization: {{.PostPushJwt}}" --json "{\"siteid\": \"{{.SiteId}}\", \"sha\": \"$newsha\"}"
+uploadfile() {
+	echo "Uploading to CDN file ${1}..."
+  curl -XPUT --silent --output /dev/null -H 'AccessKey: {{.StorageToken}}' --data-binary "${1}" "{{.StorageUrl}}/{{.StorageName}}/${1}"
+}
 
-echo "cache purged, now cleaning up local files..."
+# make the above function available to spawned shells
+export -f uploadfile
+
+# https://stackoverflow.com/questions/11003418/calling-shell-functions-with-xargs
+find . -not -path '*/.*' -type f | xargs -P 10 -I {} bash -c 'uploadfile "$@"' _ {}
+
+echo "Updating site row metadata and purging CDN cache..."
+
+curl -XPOST --silent --output /dev/null "{{.PostPushUrl}}" -H "Authorization: {{.PostPushJwt}}" --json "{\"siteid\": \"{{.SiteId}}\", \"sha\": \"$newsha\"}"
+
+echo "Cleaning up local files after publish..."
 
 rm -rf /tmp/{{.SiteId}}
 
-echo "all cleaned up, goodbye"
+echo "All cleaned up, goodbye!"
 `

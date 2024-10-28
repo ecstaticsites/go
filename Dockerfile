@@ -3,7 +3,7 @@ FROM ubuntu:24.04
 WORKDIR /src
 
 # Install some system dependencies
-RUN apt-get update && apt-get install -y xz-utils curl git ca-certificates lftp
+RUN apt-get update && apt-get install -y xz-utils curl git ca-certificates
 RUN update-ca-certificates
 
 # This is the official way to install it :(
